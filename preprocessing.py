@@ -54,6 +54,8 @@ def process_eeg_data(edf_dir, seizure_info, window_duration=2, overlap_duration=
             continue
         file_path = os.path.join(edf_dir, edf_file)
         raw = mne.io.read_raw_edf(file_path, preload=True)
+        raw.resample(64, npad='auto') # down sampling to 64Hz
+
         # select channels in .edf file
         channels_in_edf_file = []
         for channel in channels:
