@@ -4,15 +4,13 @@ import numpy as np
 import torch
 import logging
 
-def band_pass(raw, bands, window_start, window_end):
+def band_pass(data, sfreq, bands):
     # extract data window from raw
-    data = raw[:, window_start:window_end][0]
     all_data = [data]    
     # band pass for all bands
     for low, high in bands:
-        copied_data = raw.copy().filter(l_freq=low, h_freq=high, fir_design='firwin', n_jobs=4)
-        window_band_data = copied_data[:, window_start:window_end][0]
-        all_data.append(window_band_data)
+        filtered_window_data = mne.filter.filter_data(data, sfreq, l_freq=low, h_freq=high)
+        all_data.append(filtered_window_data)
         
     all_data_np = np.stack(all_data)
     return all_data_np
@@ -74,11 +72,6 @@ def process_eeg_data(edf_dir, seizure_info, window_duration=2, overlap_duration=
         while i <= raw.n_times - window_samples:
             window_start = i
             window_end = i + window_samples
-
-            #print("Channels before extraction:", raw.ch_names)
-            data, _ = raw[:, window_start:window_end]
-            #print("Shape of extracted data:", data.shape)
-
             # labeling seizure information
             is_seizure = False
             if seizure_info.get(edf_file):  # if seizures are in .edf file
@@ -95,24 +88,12 @@ def process_eeg_data(edf_dir, seizure_info, window_duration=2, overlap_duration=
             i += window_samples - overlap_samples  # Move the index forward
             
             # cancel MNE terminal message
-            #logging.getLogger('mne').setLevel(logging.WARNING)
-
-            # Processing the EEG data for bandpass filtering
-            all_data = [data]  # Include the raw data
-
-            # bandpass using .filter func, bands = [(0, 4), (4, 8), (8, 12), (12, 16), (16, 20), (20, 24), (24, 28)]
-            # raw_copy = raw.copy()
-            # for low, high in bands:
-            #    band_data = raw_copy.copy().filter(l_freq=low, h_freq=high, fir_design='firwin')
-            #    window_band_data = band_data[:, window_start:window_end][0]
-            #    all_data.append(window_band_data)
+            logging.getLogger('mne').setLevel(logging.WARNING)
             
-            # numpy
-            all_data_np = np.stack(all_data)
-
-            #processed_data = band_pass(raw, bands, window_start, window_end) # bandpass using band_pass func
+            data, _ = raw[:, window_start:window_end]
+            processed_data = band_pass(data, sfreq, bands) # bandpass using band_pass func
             
-            data_tensor = torch.tensor(all_data_np, dtype=torch.float32)
+            data_tensor = torch.tensor(processed_data, dtype=torch.float32)
             data_tensor = data_tensor.permute(1, 2, 0) # demension control (channel, sample, filtered)
             label_tensor = torch.tensor(int(is_seizure), dtype=torch.int64)
             data_labels_tensors.append((data_tensor, label_tensor))
