@@ -5,7 +5,7 @@ import torch
 import logging
 
 def band_pass(raw, bands, window_start, window_end):
-    # extract data window form raw
+    # extract data window from raw
     data = raw[:, window_start:window_end][0]
     all_data = [data]    
     # band pass for all bands
@@ -13,8 +13,8 @@ def band_pass(raw, bands, window_start, window_end):
         copied_data = raw.copy().filter(l_freq=low, h_freq=high, fir_design='firwin', n_jobs=4)
         window_band_data = copied_data[:, window_start:window_end][0]
         all_data.append(window_band_data)
-        all_data_np = np.stack(all_data)
-
+        
+    all_data_np = np.stack(all_data)
     return all_data_np
 
 # reading seizure information from summary.txt and store to seizure_info
@@ -46,7 +46,7 @@ def load_seizure_info(file_path):
 def process_eeg_data(edf_dir, seizure_info, window_duration=2, overlap_duration=1):
     data_labels_tensors = [] # output tensor
     bands = [(0, 4), (4, 8), (8, 12), (12, 16), (16, 20), (20, 24), (24, 28)] # bands for BPF
-    #list for controlling channel variation
+    #list for controlling channel variation (list of channels for using)
     channels = ['FP1-F7', 'F7-T7', 'T7-P7', 'P7-O1', 'FP1-F3', 'F3-C3', 'C3-P3', 'P3-O1', 'FP2-F4', 'F4-C4', 'C4-P4', 'P4-O2', 'FP2-F8', 'F8-T8', 'T8-P8', 'T8-P8-0', 'P8-O2', 'FZ-CZ', 'CZ-PZ', 'P7-T7', 'T7-FT9', 'FT9-FT10', 'FT10-T8']
     
     for edf_file in os.listdir(edf_dir):
@@ -94,13 +94,15 @@ def process_eeg_data(edf_dir, seizure_info, window_duration=2, overlap_duration=
                 overlap_samples = int(window_samples * 0.5)  # 50% overlap for non-seizures
             i += window_samples - overlap_samples  # Move the index forward
             
-            # cancel terminal message
+            # cancel MNE terminal message
             #logging.getLogger('mne').setLevel(logging.WARNING)
 
             # Processing the EEG data for bandpass filtering
             all_data = [data]  # Include the raw data
-            # BPF, bands = [(0, 4), (4, 8), (8, 12), (12, 16), (16, 20), (20, 24), (24, 28)]
-            #for low, high in bands:
+
+            # bandpass using .filter func, bands = [(0, 4), (4, 8), (8, 12), (12, 16), (16, 20), (20, 24), (24, 28)]
+            # raw_copy = raw.copy()
+            # for low, high in bands:
             #    band_data = raw_copy.copy().filter(l_freq=low, h_freq=high, fir_design='firwin')
             #    window_band_data = band_data[:, window_start:window_end][0]
             #    all_data.append(window_band_data)
@@ -108,7 +110,7 @@ def process_eeg_data(edf_dir, seizure_info, window_duration=2, overlap_duration=
             # numpy
             all_data_np = np.stack(all_data)
 
-            #processed_data = band_pass(raw, bands, window_start, window_end)
+            #processed_data = band_pass(raw, bands, window_start, window_end) # bandpass using band_pass func
             
             data_tensor = torch.tensor(all_data_np, dtype=torch.float32)
             data_tensor = data_tensor.permute(1, 2, 0) # demension control (channel, sample, filtered)
