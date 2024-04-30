@@ -55,15 +55,17 @@ def process_eeg_data(edf_dir, seizure_info, window_duration=2, overlap_duration=
         file_path = os.path.join(edf_dir, edf_file)
         raw = mne.io.read_raw_edf(file_path, preload=True)
         raw.resample(64, npad='auto') # down sampling to 64Hz
-
         # select channels in .edf file
         channels_in_edf_file = []
         for channel in channels:
             if channel in raw.ch_names:
                 channels_in_edf_file.append(channel)
         raw.pick(channels_in_edf_file)
-        print(raw.ch_names)
-        print(len(raw.ch_names))
+        # for T8-P8 duplication case
+        if 'T8-P8-0' in raw.ch_names:
+            raw.rename_channels({'T8-P8-0': 'T8-P8'})
+        #print(raw.ch_names) # for checking channel list in edf file
+        print(f"{len(raw.ch_names)} channels in {edf_file}")
         
         sfreq = raw.info['sfreq'] # sampling rate
         window_samples = int(window_duration * sfreq) # sample
