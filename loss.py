@@ -24,10 +24,10 @@ def npc_validation_loss(output, model):
         closest_position_index = torch.argmin(distances)
         closest_position = model.npc.position[closest_position_index]
         loss = torch.norm(sample - closest_position)
-        losses.append(loss)
+        losses.append(loss.item())
         
         # Get the label corresponding to the closest position
         closest_label = model.npc.label[closest_position_index]
-        closest_labels.append(closest_label)
+        closest_labels.append(closest_label.item())
 
-    return losses, closest_labels
+    return loss, closest_labels
