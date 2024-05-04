@@ -5,6 +5,7 @@ Date      2024.05.04
 
 import torch
 import torch.nn as nn
+import numpy as np
 
 class SciCNN(nn.Module):
 

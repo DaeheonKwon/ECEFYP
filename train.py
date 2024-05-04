@@ -19,7 +19,7 @@ def train_epoch(model, dataloaders, optimizer, loss_type, device):
     start_epoch = time.perf_counter()
     loss = 0.
     iterators = list(map(iter, dataloaders))
-    total_length = sum([len(itr) for itr in iterators])
+    total_length = sum([sum([len(i) for i in itr]) for itr in iterators])
     while iterators:
         iterator = np.random.choice(iterators)
         try:
@@ -35,11 +35,12 @@ def train_epoch(model, dataloaders, optimizer, loss_type, device):
     return loss/total_length, time.perf_counter() - start_epoch
 
 '''Calibration: 2 minutes of seizure-free data / labeling NPC clusters'''
-def calibrate(model, iterator, device): 
+def calibrate(model, dataloader, device): 
     model.eval()
     start = time.perf_counter()
+    iterator = iter(dataloader)
     with torch.no_grad():  # using context manager
-        for _ in range(240): # 64 samples per batch, 240 batches: 2-minute calibration
+        for _ in range(120): # 1 samples per batch, 120 batches: 2-minute calibration
             images, _ = next(iterator)
             images = images.to(device)
             output = model(images)
@@ -58,9 +59,8 @@ def validate(model, dataloader, loss_type, device):
     total_length = len(dataloader)
     pred_all = np.array([])
     labels_all = np.array([])
-
+    calibrate_time = calibrate(model, dataloader, device)  
     with torch.no_grad():  # using context manager
-        calibrate_time = calibrate(model, dataloader, device)  
         iterator = iter(dataloader)
         while True:
             try:
@@ -69,7 +69,7 @@ def validate(model, dataloader, loss_type, device):
                 output = model(images)
                 val_loss = loss_type(output, model)
                 loss += val_loss[0].item()
-                pred = val_loss[1].item().numpy()
+                pred = val_loss[1].item()
                 pred_all = np.append(pred_all, pred)
                 labels = labels.cpu().numpy()
                 labels_all = np.append(labels_all, labels)
@@ -107,26 +107,16 @@ def validate(model, dataloader, loss_type, device):
 
     return loss/total_length, confusion_matrix, event_confusion_matrix, calibrate_time, time.perf_counter() - start
 
-
-
-def save_model(exp_dir, epoch, model, optimizer, best_val_loss, is_new_best):
+def save_model(exp_dir, epoch, model, optimizer):
     torch.save(
         {
         'epoch': epoch,
         'model': model.state_dict(),
         'optimizer': optimizer.state_dict(),
-        'best_val_loss': best_val_loss,
         'exp_dir': exp_dir
         },
         f= exp_dir + '/model.pt'
     )
-
-    if is_new_best[0]:
-        os.system(f'cp {exp_dir}/model.pt {exp_dir}/best_loss_model.pt')
-    if is_new_best[1]:
-        os.system(f'cp {exp_dir}/model.pt {exp_dir}/best_sensitivity_model.pt')
-    if is_new_best[2]:
-        os.system(f'cp {exp_dir}/model.pt {exp_dir}/best_specificity_model.pt')
 
 def train(train_datasets, validation_datasets, num_epochs=100):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
@@ -141,78 +131,67 @@ def train(train_datasets, validation_datasets, num_epochs=100):
         train_dataloader, _ = get_dataloaders(train_dataset)
         train_dataloaders.append(train_dataloader)
 
-    for validation_dataset in validation_datasets:
-        _, val_dataloader = get_dataloaders(validation_dataset)
-        val_dataloaders.append(val_dataloader)
+    train_dataloaders = list(chain(*train_dataloaders))
 
-    best_val_loss = 1.
-
-    best_specificity = 0.
-    best_sensitivity = 0.
+    
 
     train_loss_list = []
-    val_loss_list = []
-
-    val_loss_log = np.empty((0, 2))
     for epoch in range(num_epochs):
         print(f'Epoch #{epoch}')
 
         train_loss, train_time = train_epoch(model, train_dataloaders, optimizer, npc_training_loss, device)
-        val_loss, confusion_matrix, event_confusion_matrix, calibrate_time, val_time = validate(model, val_dataloader, npc_validation_loss, device)
         scheduler.step()
 
-        val_loss_log = np.append(val_loss_log, np.array([[epoch, val_loss]]), axis=0)
-        file_path = '../loss/val_loss_log'
-        np.save(file_path, val_loss_log)
-        print(f"loss file saved! {file_path}")
-
         train_loss_list.append(train_loss)
-        val_loss_list.append(val_loss)
 
-        sensitivity = confusion_matrix[1, 1]/(confusion_matrix[1, 1] + confusion_matrix[0, 1])
-        specificity = confusion_matrix[0, 0]/(confusion_matrix[0, 0] + confusion_matrix[1, 0])
-
-        event_sensitivity = event_confusion_matrix[1, 1]/(event_confusion_matrix[1, 1] + event_confusion_matrix[0, 1])
-        event_specificity = event_confusion_matrix[0, 0]/(event_confusion_matrix[0, 0] + event_confusion_matrix[1, 0])
-
-        is_new_best = [
-            val_loss <= best_val_loss,
-            sensitivity >= best_sensitivity,
-            specificity >= best_specificity
-        ]
-        
-        best_val_loss = min(val_loss, best_val_loss)
-        best_specificity = max(specificity, best_specificity)
-        best_sensitivity = max(sensitivity, best_sensitivity)
-
-        save_model('../model', epoch, model, optimizer, best_val_loss, is_new_best)
+        save_model('../model', epoch, model, optimizer)
 
         print(
             f'Trainloss = {train_loss:.4g} ValLoss = {val_loss:.4g} TrainTime = {train_time:.4f}s ValTime = {val_time:.4f}s Calibration = {calibrate_time:.4f}s\n'
             f'Sample-based Sensitivity = {sensitivity:.4g} Sample-based Specificity = {specificity:.4g}\n'
-            f'Event-based Sensitivity = {event_sensitivity:.4g} Event-based Specificity = {event_specificity:.4g}\n'
+            f'Event-based Sensitivity = {event_sensitivity:.4g} Event-based Specificity = {event_specificity:.4g}'
         )
+    print('Training completed. Starting validation...')
 
-        if is_new_best[0]:
-            print(f'New best val loss: {best_val_loss:.4g}')
-        if is_new_best[1]:
-            print(f'New best sensitivity: {best_sensitivity:.4g}')
-        if is_new_best[2]:
-            print(f'New best specificity: {best_specificity:.4g}')
+    for validation_dataset in validation_datasets:
+        _, val_dataloader = get_dataloaders(validation_dataset)
+        val_dataloaders.append(val_dataloader)
 
+    # validation dataloaders are separated by patient. individual calibration is needed
+    sensitivity_list = []
+    specificity_list = []
+
+    event_sensitivity_list = []
+    event_specificity_list = []
+
+    for i, val_dataloader in enumerate(val_dataloaders):
+        
+        print('Validation for patient #', i+1)
+        val_loss, confusion_matrix, event_confusion_matrix, calibrate_time, val_time = validate(model, val_dataloader, npc_validation_loss, device)
+        sensitivity = confusion_matrix[1, 1]/(confusion_matrix[1, 1] + confusion_matrix[0, 1])
+        specificity = confusion_matrix[0, 0]/(confusion_matrix[0, 0] + confusion_matrix[1, 0])
+        sensitivity_list.append(sensitivity)
+        specificity_list.append(specificity)
+
+        event_sensitivity = event_confusion_matrix[1, 1]/(event_confusion_matrix[1, 1] + event_confusion_matrix[0, 1])
+        event_specificity = event_confusion_matrix[0, 0]/(event_confusion_matrix[0, 0] + event_confusion_matrix[1, 0])
+        event_specificity_list.append(event_specificity)
+        event_sensitivity_list.append(event_sensitivity)
+
+        print(
+                f'ValLoss = {val_loss:.4g} ValTime = {val_time:.4f}s Calibration Time= {calibrate_time:.4f}s\n'
+                f'Sample-based Sensitivity = {sensitivity:.4g} Sample-based Specificity = {specificity:.4g}\n'
+                f'Event-based Sensitivity = {event_sensitivity:.4g} Event-based Specificity = {event_specificity:.4g}'
+            )
+    
     y1 = np.array([])
-    y2 = np.array([])
     
     for i in train_loss_list:
         y1 = np.append(y1, i)
     
-    for i in val_loss_list:
-        y2 = np.append(y2, i)
-    
     x = np.arange(0, num_epochs)
     
     plt.plot(x, y1, 'r-.', label = 'train')
-    plt.plot(x, y2, 'b-.', label = 'val')
     plt.legend()
     
     plt.title('Loss by Epoch')
@@ -223,17 +202,20 @@ def train(train_datasets, validation_datasets, num_epochs=100):
 
 
 if __name__ == '__main__':
+
     train_datasets = [
-        [CustomEEGDataset('../data/chb21.pt'), CustomEEGDataset('../data/chb22.pt')],
-        [CustomEEGDataset('../data/chb22.pt'), CustomEEGDataset('../data/chb23.pt')],
-        [CustomEEGDataset('../data/chb23.pt'), CustomEEGDataset('../data/chb21.pt')],
+        [CustomEEGDataset('../data/chb21.pt'), CustomEEGDataset('../data/chb20.pt')],
+        [CustomEEGDataset('../data/chb20.pt'), CustomEEGDataset('../data/chb23.pt')],
+        [CustomEEGDataset('../data/chb23.pt'), CustomEEGDataset('../data/chb21.pt')]
     ]
     validation_datasets = [
         [CustomEEGDataset('../data/chb23.pt')],
         [CustomEEGDataset('../data/chb21.pt')],
-        [CustomEEGDataset('../data/chb22.pt')],
+        [CustomEEGDataset('../data/chb20.pt')]
     ]
 
-    for i in range(3):
+
+
+    for i in range(2):
         print(f'---------------------Cross-Validation Fold # {i+1}---------------------')
         train(train_datasets=train_datasets[i], validation_datasets=validation_datasets[i], num_epochs=40)
