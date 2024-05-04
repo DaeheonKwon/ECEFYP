@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import time
 import os
+from itertools import chain
 from matplotlib import pyplot as plt
 from loss import npc_training_loss, npc_validation_loss
 from model import SciCNN
@@ -29,15 +30,13 @@ def train_epoch(model, dataloaders, optimizer, loss_type, device):
     return loss/total_length, time.perf_counter() - start_epoch
 
 '''Calibration: 2 minutes of seizure-free data / labeling NPC clusters'''
-def calibrate(model, dataloaders, device): 
+def calibrate(model, iterator, device): 
     model.eval()
     start = time.perf_counter()
-    iterators = list(map(iter, dataloaders))
-    iterators = iterators[0] # only use seizure-free class for calibration
     with torch.no_grad():  # using context manager
-        for _ in range(128*120): # 128 samples per second, 120 seconds: 2-minute calibration
+        for _ in range(120): # 128 samples per second, 120 seconds: 2-minute calibration
             # or keep batch size 64 and run 240 times?
-            images, _ = next(iterators)
+            images, _ = next(iterator)
             images = images.to(device)
             output = model(images)
             mean_output = torch.mean(output, dim=0) # unnecessary, since batch size is 1. left for consistency
@@ -46,32 +45,63 @@ def calibrate(model, dataloaders, device):
             model.npc.label[closest_position_index] = 0
     return time.perf_counter() - start
 
-def validate(model, dataloaders, loss_type, device):
+def validate(model, dataloader, loss_type, device):
     model.eval()
     start = time.perf_counter()
     loss = 0.
     confusion_matrix = np.zeros((2, 2))
-    iterators = list(map(iter, dataloaders))
-    total_length = sum([len(itr) for itr in iterators])
+    event_confusion_matrix = np.zeros((2, 2))
+    total_length = len(dataloader)
+    pred_all = np.array([])
+    labels_all = np.array([])
+    
     with torch.no_grad():  # using context manager
-        while iterators:
+        calibrate_time = calibrate(model, dataloader, device)  
+        iterator = iter(dataloader)
+        while True:
             try:
-
                 images, labels = next(iterator)
                 images, labels = images.to(device), labels.to(device)
                 output = model(images)
                 val_loss = loss_type(output, model)
                 loss += val_loss[0].item()
-                pred = val_loss[1].item()
+                pred = val_loss[1].item().numpy()
+                pred_all = np.append(pred_all, pred)
                 labels = labels.cpu().numpy()
-                confusion_matrix[0, 0] += np.sum(np.logical_and(pred == 0, labels == 0))
-                confusion_matrix[0, 1] += np.sum(np.logical_and(pred == 0, labels == 1))
-                confusion_matrix[1, 0] += np.sum(np.logical_and(pred == 1, labels == 0))
-                confusion_matrix[1, 1] += np.sum(np.logical_and(pred == 1, labels == 1))
+                labels_all = np.append(labels_all, labels)
             except StopIteration:
-                iterators.remove(iterator)
-            
-    return loss/total_length, confusion_matrix/total_length, time.perf_counter() - start
+                break
+
+        confusion_matrix[0, 0] = np.sum(np.logical_and(pred_all == 0, labels_all == 0))
+        confusion_matrix[0, 1] = np.sum(np.logical_and(pred_all == 0, labels_all == 1))
+        confusion_matrix[1, 0] = np.sum(np.logical_and(pred_all == 1, labels_all == 0))
+        confusion_matrix[1, 1] = np.sum(np.logical_and(pred_all == 1, labels_all == 1))
+        
+        '''Constructing event-based confusion matrix'''
+        clusters = np.split(labels_all, np.where(np.diff(labels_all) != 0)[0]+1)
+        pred_clusters = np.split(pred_all, np.where(np.diff(labels_all) != 0)[0]+1)
+
+        cluster_labels = []
+        cluster_preds = []
+
+        for i, cluster in enumerate(clusters):
+            if np.count_nonzero(cluster) > 0:
+                cluster_labels.append(1)
+                if np.count_nonzero(pred_clusters[i]) > 0:
+                    cluster_preds.append(1)
+                else:
+                    cluster_preds.append(0)
+            else:
+                cluster_labels.append(cluster)
+                cluster_preds.append(pred_clusters[i])
+
+        event_confusion_matrix[0, 0] = np.sum(np.logical_and(cluster_preds == 0, cluster_labels == 0))
+        event_confusion_matrix[0, 1] = np.sum(np.logical_and(cluster_preds == 0, cluster_labels == 1))
+        event_confusion_matrix[1, 0] = np.sum(np.logical_and(cluster_preds == 1, cluster_labels == 0))
+        event_confusion_matrix[1, 1] = np.sum(np.logical_and(cluster_preds == 1, cluster_labels == 1))
+        
+
+    return loss/total_length, confusion_matrix, event_confusion_matrix, calibrate_time, time.perf_counter() - start
 
 
 
@@ -105,8 +135,8 @@ def train():
     dataset = CustomEEGDataset('../data/chb21.pt')
     train_dataset, validation_dataset, _ = split_datasets(dataset)
 
-    train_dataloaders = get_dataloaders(train_dataset)
-    val_dataloaders = get_dataloaders(validation_dataset)
+    train_dataloaders, _ = get_dataloaders(train_dataset)
+    _, val_dataloader = get_dataloaders(validation_dataset)
 
     best_val_loss = 1.
 
@@ -121,8 +151,7 @@ def train():
         print(f'Epoch #{epoch}')
 
         train_loss, train_time = train_epoch(model, train_dataloaders, optimizer, npc_training_loss, device)
-        calibrate(model, val_dataloaders, device)
-        val_loss, confusion_matrix, val_time = validate(model, val_dataloaders, npc_validation_loss, device)
+        val_loss, confusion_matrix, calibrate_time, val_time = validate(model, val_dataloader, npc_validation_loss, device)
         scheduler.step()
 
         val_loss_log = np.append(val_loss_log, np.array([[epoch, val_loss]]), axis=0)
@@ -137,9 +166,9 @@ def train():
         specificity = confusion_matrix[0, 0]/(confusion_matrix[0, 0] + confusion_matrix[1, 0])
 
         is_new_best = [
-            val_loss < best_val_loss,
-            sensitivity > best_sensitivity or sensitivity == 1.0,
-            specificity > best_specificity or specificity == 1.0
+            val_loss <= best_val_loss,
+            sensitivity >= best_sensitivity,
+            specificity >= best_specificity
         ]
         
         best_val_loss = min(val_loss, best_val_loss)
@@ -149,8 +178,9 @@ def train():
         save_model('../model', epoch, model, optimizer, best_val_loss, is_new_best)
 
         print(
-            f'Trainloss = {train_loss:.4g} ValLoss = {val_loss:.4g} TrainTime = {train_time:.4f}s ValTime = {val_time:.4f}s \n'
-            f'Sensitivity = {sensitivity:.4g} Specificity = {specificity:.4g} \n'
+            f'Trainloss = {train_loss:.4g} ValLoss = {val_loss:.4g} TrainTime = {train_time:.4f}s ValTime = {val_time:.4f}s Calibration = {calibrate_time:.4f}s\n'
+            f'Sample-based Sensitivity = {sensitivity:.4g} Sample-based Specificity = {specificity:.4g} \n'
+            f'Event-based Sensitivity = {} Event-based Specificity = {}\n'
         )
 
         if is_new_best[0]:

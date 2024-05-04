@@ -25,6 +25,7 @@ class CustomEEGDataset(Dataset):
 def get_dataloaders(dataset, batch_size=50):
     class_inds = [torch.where(dataset.labels == class_idx)[0]
                 for class_idx in torch.unique(dataset.labels)]
+    '''shuffled, batched dataloaders for each class'''
     dataloaders = [
         DataLoader(
             dataset=Subset(dataset, inds),
@@ -33,7 +34,15 @@ def get_dataloaders(dataset, batch_size=50):
             drop_last=False)
         for inds in class_inds]
     
-    return dataloaders
+    '''non-shuffled, batched dataloader containing all classes, for validation'''
+    dataloader = DataLoader(
+        dataset=dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        drop_last=False
+    )
+    
+    return dataloaders, dataloader
 
 '''8-fold cross-validation for actual deployment'''
 def split_datasets(dataset, train_ratio=0.6, val_ratio=0.2, test_ratio=0.2, generator=None):
