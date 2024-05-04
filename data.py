@@ -1,3 +1,8 @@
+"""
+Author    Daeheon Kwon (2024)
+Date      2024.05.04
+"""
+
 import os
 import torch
 from torch.utils.data import Dataset, DataLoader, random_split, Subset

@@ -1,3 +1,8 @@
+"""
+Author    Daeheon Kwon (2024)
+Date      2024.05.04
+"""
+
 import torch
 import torch.nn as nn
 

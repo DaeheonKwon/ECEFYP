@@ -1,3 +1,10 @@
+"""
+Author    Daeheon Kwon (2024)
+Date      2024.05.04
+"""
+
+import torch
+
 def npc_training_loss(output, label, model):
     # output: (batch_size, 16, 1)
     mean_output = torch.mean(output, dim=0)
