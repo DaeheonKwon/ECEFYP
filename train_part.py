@@ -47,8 +47,8 @@ def calibrate(model, dataloader, device):
 
 def validate(model, dataloader, loss_type, device):
     model.eval()
-    start = time.perf_counter()
-    loss = 0.    confusion_matrix = np.zeros((2, 2))
+    start = time.perf_counter() 
+    confusion_matrix = np.zeros((2, 2))
     event_confusion_matrix = np.zeros((2, 2))
     pred_all = np.array([])
     labels_all = np.array([])

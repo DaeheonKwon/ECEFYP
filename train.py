@@ -29,7 +29,7 @@ def save_model(exp_dir, epoch, model, optimizer):
 def train(train_datasets, validation_datasets, num_epochs=100):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
     model = SciCNN().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-5, momentum=0.9, weight_decay=1e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
     train_dataloaders = []
@@ -85,10 +85,10 @@ def train(train_datasets, validation_datasets, num_epochs=100):
             )
 
         print(f'Validation #{i+1}/{len(val_dataloaders)}completed. Saving results...')
-        np.save(f'../results/sensitivity_list.npy', sensitivity_list)
-        np.save(f'../results/specificity_list.npy', specificity_list)
-        np.save(f'../results/event_sensitivity_list.npy', event_sensitivity_list)
-        np.save(f'../results/event_specificity_list.npy', event_specificity_list)
+        np.save(f'../results/sensitivity_list_fold_{i+1}.npy', sensitivity_list)
+        np.save(f'../results/specificity_list_fold_{i+1}.npy', specificity_list)
+        np.save(f'../results/event_sensitivity_list_fold_{i+1}.npy', event_sensitivity_list)
+        np.save(f'../results/event_specificity_list_fold_{i+1}.npy', event_specificity_list)
 
     y1 = np.array([])
     
@@ -109,23 +109,58 @@ def train(train_datasets, validation_datasets, num_epochs=100):
 
 if __name__ == '__main__':
 
+    path = '/home/dhyun/project/FYP'
     datasets = [
-        CustomEEGDataset('../data/chb20.pt'),
-        CustomEEGDataset('../data/chb21.pt'),
-        CustomEEGDataset('../data/chb23.pt')
-    ]
-    
-    train_datasets = [
-        [0, 1],
-        [0, 2],
-        [1, 2]
+        CustomEEGDataset(path + '/chb01.pt'),
+        CustomEEGDataset(path + '/chb02.pt'),
+        CustomEEGDataset(path + '/chb03.pt'),
+        CustomEEGDataset(path + '/chb04-1.pt'),
+        CustomEEGDataset(path + '/chb04-2.pt'),
+        CustomEEGDataset(path + '/chb05.pt'),
+        CustomEEGDataset(path + '/chb06.pt'),
+        CustomEEGDataset(path + '/chb07.pt'),
+        CustomEEGDataset(path + '/chb08.pt'),
+        CustomEEGDataset(path + '/chb09.pt'),
+        CustomEEGDataset(path + '/chb10.pt'),
+        CustomEEGDataset(path + '/chb11.pt'),
+        CustomEEGDataset(path + '/chb12.pt'),
+        CustomEEGDataset(path + '/chb13.pt'),
+        CustomEEGDataset(path + '/chb14.pt'),
+        CustomEEGDataset(path + '/chb15.pt'),
+        CustomEEGDataset(path + '/chb16.pt'),
+        CustomEEGDataset(path + '/chb17.pt'),
+        CustomEEGDataset(path + '/chb18.pt'),
+        CustomEEGDataset(path + '/chb19.pt'),
+        CustomEEGDataset(path + '/chb20.pt'),
+        CustomEEGDataset(path + '/chb21.pt'),
+        CustomEEGDataset(path + '/chb22.pt'),
+        CustomEEGDataset(path + '/chb23.pt'),
+        CustomEEGDataset(path + '/chb24.pt'),
     ]
 
     validation_datasets = [
-        [2],
-        [1],
-        [0]
+        [12, 18, 20],
+        [0, 11, 13],
+        [16, 21, 24],
+        [2, 14, 15],
+        [7, 9, 19],
+        [1, 8, 22],
+        [3, 4, 5, 17],
+        [6, 10, 23]
     ]
+
+    train_datasets = [
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 19, 21, 22, 23, 24],
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 17, 18, 19, 20, 22, 23],
+        [0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17, 18, 19, 20, 21, 22, 23, 24],
+        [0, 1, 2, 3, 4, 5, 6, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24],
+        [0, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 24],
+        [0, 1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23, 24],
+        [0, 1, 2, 3, 4, 5, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24]
+    ]
+
+    
 
     for i in range(1):
         print(f'---------------------Cross-Validation Fold # {i+1}---------------------')
