@@ -81,5 +81,5 @@ class NPC(nn.Module):
         super(NPC, self).__init__()
         # 256 predefined positions of NPC clusters
         self.position = nn.Parameter(torch.from_numpy(np.random.uniform(0, 1, (num_clusters, 16, 1))).to(torch.float32), requires_grad=True)
-        self.label = nn.Parameter(2*torch.ones(num_clusters), requires_grad=False)
+        self.label = nn.Parameter(torch.ones(num_clusters), requires_grad=False)
 
