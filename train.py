@@ -143,7 +143,7 @@ def train(train_datasets, validation_datasets, num_epochs=100):
         train_loss_list.append(train_loss)
         save_model('../model', epoch, model, optimizer)
         print(
-            f'Trainloss = {train_loss:.4g} ValLoss = {val_loss:.4g} TrainTime = {train_time:.4f}s'
+            f'Trainloss = {train_loss:.4g} TrainTime = {train_time:.4f}s'
         )
 
     print('Training completed. Starting validation...')
@@ -218,4 +218,4 @@ if __name__ == '__main__':
 
     for i in range(3):
         print(f'---------------------Cross-Validation Fold # {i+1}---------------------')
-        print(train_datasets=[datasets[idx] for idx in train_datasets[i]], validation_datasets=[datasets[idx] for idx in validation_datasets[i]], num_epochs=40)
+        train(train_datasets=[datasets[idx] for idx in train_datasets[i]], validation_datasets=[datasets[idx] for idx in validation_datasets[i]], num_epochs=40)
