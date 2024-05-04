@@ -26,11 +26,11 @@ def save_model(exp_dir, epoch, model, optimizer):
         f= exp_dir + '/model.pt'
     )
 
-def train(train_datasets, validation_datasets, num_epochs=100):
+def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
     model = SciCNN().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
-    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
     train_dataloaders = []
     val_dataloaders = []
@@ -44,7 +44,7 @@ def train(train_datasets, validation_datasets, num_epochs=100):
     for epoch in range(num_epochs):
         print(f'Epoch #{epoch}')
         train_loss, train_time = train_epoch(model, train_dataloaders, optimizer, npc_training_loss, device)
-        # scheduler.step()
+        scheduler.step()
         train_loss_list.append(train_loss)
         save_model('../model', epoch, model, optimizer)
         print(
@@ -104,7 +104,7 @@ def train(train_datasets, validation_datasets, num_epochs=100):
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     
-    plt.savefig('../figures/loss.png', dpi=300)
+    plt.savefig(f'../figures/loss_fold_{fold_num}.png', dpi=300)
 
 
 if __name__ == '__main__':
@@ -162,6 +162,6 @@ if __name__ == '__main__':
 
     
 
-    for i in range(1):
+    for i in range(8):
         print(f'---------------------Cross-Validation Fold # {i+1}---------------------')
-        train(train_datasets=[datasets[idx] for idx in train_datasets[i]], validation_datasets=[datasets[idx] for idx in validation_datasets[i]], num_epochs=1)
+        train(fold_num=i, train_datasets=[datasets[idx] for idx in train_datasets[i]], validation_datasets=[datasets[idx] for idx in validation_datasets[i]], num_epochs=100)
