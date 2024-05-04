@@ -34,8 +34,7 @@ def calibrate(model, iterator, device):
     model.eval()
     start = time.perf_counter()
     with torch.no_grad():  # using context manager
-        for _ in range(120): # 128 samples per second, 120 seconds: 2-minute calibration
-            # or keep batch size 64 and run 240 times?
+        for _ in range(240): # 64 samples per batch, 240 batches: 2-minute calibration
             images, _ = next(iterator)
             images = images.to(device)
             output = model(images)
@@ -54,7 +53,7 @@ def validate(model, dataloader, loss_type, device):
     total_length = len(dataloader)
     pred_all = np.array([])
     labels_all = np.array([])
-    
+
     with torch.no_grad():  # using context manager
         calibrate_time = calibrate(model, dataloader, device)  
         iterator = iter(dataloader)
@@ -124,19 +123,22 @@ def save_model(exp_dir, epoch, model, optimizer, best_val_loss, is_new_best):
     if is_new_best[2]:
         os.system(f'cp {exp_dir}/model.pt {exp_dir}/best_specificity_model.pt')
 
-def train():
+def train(train_datasets, validation_datasets, num_epochs=100):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
     model = SciCNN().to(device)
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-5, momentum=0.9, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
-    num_epochs = 100
+    train_dataloaders = []
+    val_dataloaders = []
 
-    dataset = CustomEEGDataset('../data/chb21.pt')
-    train_dataset, validation_dataset, _ = split_datasets(dataset)
+    for train_dataset in train_datasets:
+        train_dataloader, _ = get_dataloaders(train_dataset)
+        train_dataloaders.append(train_dataloader)
 
-    train_dataloaders, _ = get_dataloaders(train_dataset)
-    _, val_dataloader = get_dataloaders(validation_dataset)
+    for validation_dataset in validation_datasets:
+        _, val_dataloader = get_dataloaders(validation_dataset)
+        val_dataloaders.append(val_dataloader)
 
     best_val_loss = 1.
 
@@ -151,7 +153,7 @@ def train():
         print(f'Epoch #{epoch}')
 
         train_loss, train_time = train_epoch(model, train_dataloaders, optimizer, npc_training_loss, device)
-        val_loss, confusion_matrix, calibrate_time, val_time = validate(model, val_dataloader, npc_validation_loss, device)
+        val_loss, confusion_matrix, event_confusion_matrix, calibrate_time, val_time = validate(model, val_dataloader, npc_validation_loss, device)
         scheduler.step()
 
         val_loss_log = np.append(val_loss_log, np.array([[epoch, val_loss]]), axis=0)
@@ -164,6 +166,9 @@ def train():
 
         sensitivity = confusion_matrix[1, 1]/(confusion_matrix[1, 1] + confusion_matrix[0, 1])
         specificity = confusion_matrix[0, 0]/(confusion_matrix[0, 0] + confusion_matrix[1, 0])
+
+        event_sensitivity = event_confusion_matrix[1, 1]/(event_confusion_matrix[1, 1] + event_confusion_matrix[0, 1])
+        event_specificity = event_confusion_matrix[0, 0]/(event_confusion_matrix[0, 0] + event_confusion_matrix[1, 0])
 
         is_new_best = [
             val_loss <= best_val_loss,
@@ -179,8 +184,8 @@ def train():
 
         print(
             f'Trainloss = {train_loss:.4g} ValLoss = {val_loss:.4g} TrainTime = {train_time:.4f}s ValTime = {val_time:.4f}s Calibration = {calibrate_time:.4f}s\n'
-            f'Sample-based Sensitivity = {sensitivity:.4g} Sample-based Specificity = {specificity:.4g} \n'
-            f'Event-based Sensitivity = {} Event-based Specificity = {}\n'
+            f'Sample-based Sensitivity = {sensitivity:.4g} Sample-based Specificity = {specificity:.4g}\n'
+            f'Event-based Sensitivity = {event_sensitivity:.4g} Event-based Specificity = {event_specificity:.4g}\n'
         )
 
         if is_new_best[0]:
@@ -213,4 +218,17 @@ def train():
 
 
 if __name__ == '__main__':
-    train()
+    train_datasets = [
+        [CustomEEGDataset('../data/chb21.pt'), CustomEEGDataset('../data/chb22.pt')],
+        [CustomEEGDataset('../data/chb22.pt'), CustomEEGDataset('../data/chb23.pt')],
+        [CustomEEGDataset('../data/chb23.pt'), CustomEEGDataset('../data/chb21.pt')],
+    ]
+    validation_datasets = [
+        [CustomEEGDataset('../data/chb23.pt')],
+        [CustomEEGDataset('../data/chb21.pt')],
+        [CustomEEGDataset('../data/chb22.pt')],
+    ]
+
+    for i in range(3):
+        print(f'---------------------Cross-Validation Fold # {i+1}---------------------')
+        train(train_datasets=train_datasets[i], validation_datasets=validation_datasets[i], num_epochs=40)

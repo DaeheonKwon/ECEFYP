@@ -41,7 +41,6 @@ def get_dataloaders(dataset, batch_size=50):
         shuffle=False,
         drop_last=False
     )
-    
     return dataloaders, dataloader
 
 '''8-fold cross-validation for actual deployment'''
