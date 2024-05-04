@@ -198,19 +198,24 @@ def train(train_datasets, validation_datasets, num_epochs=100):
 
 if __name__ == '__main__':
 
+    datasets = [
+        CustomEEGDataset('../data/chb20.pt'),
+        CustomEEGDataset('../data/chb21.pt'),
+        CustomEEGDataset('../data/chb23.pt')
+    ]
+    
     train_datasets = [
-        [CustomEEGDataset('../data/chb21.pt'), CustomEEGDataset('../data/chb20.pt')],
-        [CustomEEGDataset('../data/chb20.pt'), CustomEEGDataset('../data/chb23.pt')],
-        [CustomEEGDataset('../data/chb23.pt'), CustomEEGDataset('../data/chb21.pt')]
+        [0, 1],
+        [0, 2],
+        [1, 2]
     ]
+
     validation_datasets = [
-        [CustomEEGDataset('../data/chb23.pt')],
-        [CustomEEGDataset('../data/chb21.pt')],
-        [CustomEEGDataset('../data/chb20.pt')]
+        [2],
+        [1],
+        [0]
     ]
 
-
-
-    for i in range(2):
+    for i in range(3):
         print(f'---------------------Cross-Validation Fold # {i+1}---------------------')
-        train(train_datasets=train_datasets[i], validation_datasets=validation_datasets[i], num_epochs=40)
+        print(train_datasets=[datasets[idx] for idx in train_datasets[i]], validation_datasets=[datasets[idx] for idx in validation_datasets[i]], num_epochs=40)
