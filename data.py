@@ -25,7 +25,6 @@ class CustomEEGDataset(Dataset):
 def get_dataloaders(dataset, batch_size=50):
     class_inds = [torch.where(dataset.labels == class_idx)[0]
                 for class_idx in torch.unique(dataset.labels)]
-
     dataloaders = [
         DataLoader(
             dataset=Subset(dataset, inds),
@@ -36,6 +35,7 @@ def get_dataloaders(dataset, batch_size=50):
     
     return dataloaders
 
+'''8-fold cross-validation for actual deployment'''
 def split_datasets(dataset, train_ratio=0.6, val_ratio=0.2, test_ratio=0.2, generator=None):
     train_size = int(train_ratio * len(dataset))
     val_size = int(val_ratio * len(dataset))

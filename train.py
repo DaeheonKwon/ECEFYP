@@ -15,8 +15,8 @@ def train_epoch(model, dataloaders, optimizer, loss_type, device):
     iterators = list(map(iter, dataloaders))
     total_length = sum([len(itr) for itr in iterators])
     while iterators:
+        iterator = np.random.choice(iterators)
         try:
-            iterator = np.random.choice(iterators)
             images, labels = next(iterator)
             images, labels = images.to(device), labels.to(device)
             optimizer.zero_grad()
@@ -56,7 +56,7 @@ def validate(model, dataloaders, loss_type, device):
     with torch.no_grad():  # using context manager
         while iterators:
             try:
-                iterator = np.random.choice(iterators)
+
                 images, labels = next(iterator)
                 images, labels = images.to(device), labels.to(device)
                 output = model(images)
@@ -95,9 +95,7 @@ def save_model(exp_dir, epoch, model, optimizer, best_val_loss, is_new_best):
         os.system(f'cp {exp_dir}/model.pt {exp_dir}/best_specificity_model.pt')
 
 def train():
-    global device
     device = torch.device("cuda:0" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
-    global model
     model = SciCNN().to(device)
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-5, momentum=0.9, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
@@ -119,10 +117,11 @@ def train():
     val_loss_list = []
 
     val_loss_log = np.empty((0, 2))
-    for epoch in tqdm(range(num_epochs)):
+    for epoch in range(num_epochs):
         print(f'Epoch #{epoch}')
 
         train_loss, train_time = train_epoch(model, train_dataloaders, optimizer, npc_training_loss, device)
+        calibrate(model, val_dataloaders, device)
         val_loss, confusion_matrix, val_time = validate(model, val_dataloaders, npc_validation_loss, device)
         scheduler.step()
 
