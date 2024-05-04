@@ -138,19 +138,14 @@ def train(train_datasets, validation_datasets, num_epochs=100):
     train_loss_list = []
     for epoch in range(num_epochs):
         print(f'Epoch #{epoch}')
-
         train_loss, train_time = train_epoch(model, train_dataloaders, optimizer, npc_training_loss, device)
         scheduler.step()
-
         train_loss_list.append(train_loss)
-
         save_model('../model', epoch, model, optimizer)
-
         print(
-            f'Trainloss = {train_loss:.4g} ValLoss = {val_loss:.4g} TrainTime = {train_time:.4f}s ValTime = {val_time:.4f}s Calibration = {calibrate_time:.4f}s\n'
-            f'Sample-based Sensitivity = {sensitivity:.4g} Sample-based Specificity = {specificity:.4g}\n'
-            f'Event-based Sensitivity = {event_sensitivity:.4g} Event-based Specificity = {event_specificity:.4g}'
+            f'Trainloss = {train_loss:.4g} ValLoss = {val_loss:.4g} TrainTime = {train_time:.4f}s'
         )
+
     print('Training completed. Starting validation...')
 
     for validation_dataset in validation_datasets:
@@ -164,9 +159,9 @@ def train(train_datasets, validation_datasets, num_epochs=100):
     event_sensitivity_list = []
     event_specificity_list = []
 
+    '''Validation for each patient in the validation set.'''
     for i, val_dataloader in enumerate(val_dataloaders):
-        
-        print('Validation for patient #', i+1)
+        print('Validation for patient #', i+1, '/', len(val_dataloaders))
         val_loss, confusion_matrix, event_confusion_matrix, calibrate_time, val_time = validate(model, val_dataloader, npc_validation_loss, device)
         sensitivity = confusion_matrix[1, 1]/(confusion_matrix[1, 1] + confusion_matrix[0, 1])
         specificity = confusion_matrix[0, 0]/(confusion_matrix[0, 0] + confusion_matrix[1, 0])
