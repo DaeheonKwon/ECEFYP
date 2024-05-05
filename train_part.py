@@ -52,7 +52,7 @@ def calibrate(model, dataloader, device):
             closest_position_index = torch.argmin(distances)
             label_count[closest_position_index] += 1
 
-        model.npc.label = torch.where(label_count > 1, 0, 1) 
+        model.npc.label = nn.Parameter(torch.where(label_count > 1, 0, 1), requires_grad=False)
         # configurable. 0 (non-seizure) if at least 2 samples are closest to that particular NPC. Otherwise, 1 (seizure)
 
     return time.perf_counter() - start
