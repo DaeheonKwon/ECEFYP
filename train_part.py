@@ -35,9 +35,10 @@ def train_epoch(model, dataloaders, optimizer, loss_type, device):
             model.npc.position.requires_grad = True
             npc_loss.backward(retain_graph=True)
             for param in model.parameters():
+                if param == model.npc.label:
+                    continue
                 param.requires_grad = True
             model.npc.position.requires_grad = False
-            model.npc.label.requires_grad = False
             iCNN_loss.backward()
             optimizer.step()
             if itr % report_interval == 0:
