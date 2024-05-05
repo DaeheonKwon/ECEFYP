@@ -5,14 +5,15 @@ Date      2024.05.04
 
 import torch
 
-def npc_training_loss(output, label, model):
+def npc_training_loss(output, model):
     # output: (batch_size, 16, 1)
     mean_output = torch.mean(output, dim=0)
     distances = torch.norm(mean_output.view(1, -1, 1) - model.npc.position.data, dim=1).squeeze()
     closest_position_index = torch.argmin(distances)
     closest_position = model.npc.position[closest_position_index]
-    loss = torch.norm(mean_output - closest_position)
-    return loss
+    npc_loss = torch.norm(mean_output - closest_position)
+    iCNN_loss = torch.norm(distances)
+    return npc_loss, iCNN_loss
 
 def npc_validation_loss(output, model):
     # output: (batch_size, 16, 1)

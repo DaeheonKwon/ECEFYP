@@ -13,7 +13,8 @@ import logging
 def train_epoch(model, dataloaders, optimizer, loss_type, device):
     model.train()
     start_epoch = time.perf_counter()
-    loss = 0.
+    npc_loss = 0.
+    iCNN_loss = 0.
     iterators = list(map(iter, dataloaders))
     total_length = sum(len(itr) for itr in iterators)
     report_interval = total_length // 10
@@ -25,16 +26,23 @@ def train_epoch(model, dataloaders, optimizer, loss_type, device):
             images, labels = next(iterator)
             images, labels = images.to(device), labels.to(device)
             optimizer.zero_grad()
-            train_loss = loss_type(model(images), labels, model)
-            loss += train_loss.item()
-            train_loss.backward()
+            '''Key Part: npc loss only updates npc positions, and iCNN loss only updates iCNN parameters'''
+            npc_loss, iCNN_loss = loss_type(model(images), model)
+            npc_loss += npc_loss.item()
+            iCNN_loss += iCNN_loss.item()
+            model.parameters().requires_grad = False
+            model.npc.position.requires_grad = True
+            npc_loss.backward(retain_graph=True)
+            model.parameters().requires_grad = True
+            model.npc.position.requires_grad = False
+            iCNN_loss.backward()
             optimizer.step()
             if itr % report_interval == 0:
                 print(f'Processed {itr}/{total_length} samples')
                 logging.info(f'Processed {itr}/{total_length} samples')
         except StopIteration:
             iterators.remove(iterator)
-    return loss/total_length, time.perf_counter() - start_epoch
+    return npc_loss/total_length, iCNN_loss/total_length, time.perf_counter() - start_epoch
 
 '''Calibration: 2 minutes of seizure-free data / labeling NPC clusters'''
 def calibrate(model, dataloader, device): 
@@ -54,7 +62,9 @@ def calibrate(model, dataloader, device):
 
         model.npc.label = nn.Parameter(torch.where(label_count > 0, 0, 1), requires_grad=False)
         print('label count:', label_count)
+        logging.info(f'label count: {label_count}')
         print('npc label:', model.npc.label)
+        logging.info(f'npc label: {model.npc.label}')
         # configurable. 0 (non-seizure) if at least 2 samples are closest to that particular NPC. Otherwise, 1 (seizure)
 
     return time.perf_counter() - start

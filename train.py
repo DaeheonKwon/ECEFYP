@@ -16,7 +16,7 @@ from model import SciCNN
 from data import get_dataloaders, CustomEEGDataset, split_datasets
 from train_part import train_epoch, validate
 
-def save_model(exp_dir, epoch, model, optimizer):
+def save_model(exp_dir, fold, epoch, model, optimizer):
     torch.save(
         {
         'epoch': epoch,
@@ -24,7 +24,7 @@ def save_model(exp_dir, epoch, model, optimizer):
         'optimizer': optimizer.state_dict(),
         'exp_dir': exp_dir
         },
-        f= exp_dir + '/model.pt'
+        f= exp_dir + f'/model_{epoch}_{fold}.pt'
     )
 
 def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
@@ -40,7 +40,8 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
         train_dataloaders.append(train_dataloader)
 
     train_dataloaders = list(chain(*train_dataloaders))
-    train_loss_list = []
+    npc_loss_list = []
+    iCNN_loss_list = []
 
     for validation_dataset in validation_datasets:
         _, val_dataloader = get_dataloaders(validation_dataset)
@@ -49,15 +50,16 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
     for epoch in range(num_epochs):
         print(f'Epoch #{epoch+1}')
         logging.info(f'Epoch #{epoch+1}')
-        train_loss, train_time = train_epoch(model, train_dataloaders, optimizer, npc_training_loss, device)
+        npc_loss, iCNN_loss, train_time = train_epoch(model, train_dataloaders, optimizer, npc_training_loss, device)
         scheduler.step()
-        train_loss_list.append(train_loss)
-        save_model('../model', epoch, model, optimizer)
+        npc_loss_list.append(npc_loss)
+        iCNN_loss_list.append(iCNN_loss)
+        save_model('../model', fold_num, epoch, model, optimizer)
         print(
-            f'Trainloss = {train_loss:.4f} TrainTime = {train_time:.4f}s'
+            f'NPCloss = {npc_loss:.4f} iCNNloss = {iCNN_loss:.4f} TrainTime = {train_time:.4f}s'
         )
         logging.info(
-            f'Trainloss = {train_loss:.4f} TrainTime = {train_time:.4f}s'
+            f'NPCloss = {npc_loss:.4f} iCNNloss = {iCNN_loss:.4f} TrainTime = {train_time:.4f}s'
         )
 
         print('Training completed. Starting validation...')
@@ -104,9 +106,6 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
 
         print(f'event-based sensitivity: {event_sensitivity_list.mean()}, event-based specificity: {event_specificity_list.mean()}')
         logging.info(f'event-based sensitivity: {event_sensitivity_list.mean()}, event-based specificity: {event_specificity_list.mean()}')
-
-        print(f'Validation #{fold_num+1}/{len(val_dataloaders)} completed. Saving results...')
-        logging.info(f'Validation #{fold_num+1}/{len(val_dataloaders)} completed. Saving results...')
 
         np.save(f'../results/sensitivity_list_fold_{fold_num+1}_epoch_{epoch}.npy', sensitivity_list)
         np.save(f'../results/specificity_list_fold_{fold_num+1}_epoch_{epoch}.npy', specificity_list)
