@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 import time
 import os
+import logging
 from itertools import chain
 from matplotlib import pyplot as plt
 from loss import npc_training_loss, npc_validation_loss
@@ -43,6 +44,7 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
     train_loss_list = []
     for epoch in range(num_epochs):
         print(f'Epoch #{epoch}')
+        logging.info(f'Epoch #{epoch}')
         train_loss, train_time = train_epoch(model, train_dataloaders, optimizer, npc_training_loss, device)
         scheduler.step()
         train_loss_list.append(train_loss)
@@ -50,8 +52,12 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
         print(
             f'Trainloss = {train_loss:.4f} TrainTime = {train_time:.4f}s'
         )
+        logging.info(
+            f'Trainloss = {train_loss:.4f} TrainTime = {train_time:.4f}s'
+        )
 
     print('Training completed. Starting validation...')
+    logging.info('Training completed. Starting validation...')
 
     for validation_dataset in validation_datasets:
         _, val_dataloader = get_dataloaders(validation_dataset)
@@ -67,6 +73,7 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
     '''Validation for each patient in the validation set.'''
     for i, val_dataloader in enumerate(val_dataloaders):
         print('Validation for patient #', i+1, '/', len(val_dataloaders))
+        logging.info('Validation for patient #', i+1, '/', len(val_dataloaders))
         confusion_matrix, event_confusion_matrix, calibrate_time, val_time = validate(model, val_dataloader, npc_validation_loss, device)
         sensitivity = confusion_matrix[1, 1]/(confusion_matrix[1, 1] + confusion_matrix[0, 1])
         specificity = confusion_matrix[0, 0]/(confusion_matrix[0, 0] + confusion_matrix[1, 0])
@@ -83,8 +90,14 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
                 f'Sample-based Sensitivity = {sensitivity:.4f} Sample-based Specificity = {specificity:.4f}\n'
                 f'Event-based Sensitivity = {event_sensitivity:.4f} Event-based Specificity = {event_specificity:.4f}'
             )
+        logging.info(
+                f'Calibration Time= {calibrate_time:.4f}s ValTime = {val_time:.4f}s\n'
+                f'Sample-based Sensitivity = {sensitivity:.4f} Sample-based Specificity = {specificity:.4f}\n'
+                f'Event-based Sensitivity = {event_sensitivity:.4f} Event-based Specificity = {event_specificity:.4f}'
+            )
 
         print(f'Validation #{i+1}/{len(val_dataloaders)}completed. Saving results...')
+        logging.info(f'Validation #{i+1}/{len(val_dataloaders)}completed. Saving results...')
         np.save(f'../results/sensitivity_list_fold_{i+1}.npy', sensitivity_list)
         np.save(f'../results/specificity_list_fold_{i+1}.npy', specificity_list)
         np.save(f'../results/event_sensitivity_list_fold_{i+1}.npy', event_sensitivity_list)
@@ -108,6 +121,8 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
 
 
 if __name__ == '__main__':
+    log_file = '/home/dhkwon/FYP/ECEFYP/train.log'
+    logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
     path = '/home/dhyun/project/FYP'
     datasets = [
@@ -139,6 +154,7 @@ if __name__ == '__main__':
     ]
 
     validation_datasets = [
+        [0, 1],
         [12, 18, 20],
         [0, 11, 13],
         [16, 21, 24],
@@ -150,6 +166,7 @@ if __name__ == '__main__':
     ]
 
     train_datasets = [
+        [16, 17]
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 19, 21, 22, 23, 24],
         [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 17, 18, 19, 20, 22, 23],
@@ -162,6 +179,6 @@ if __name__ == '__main__':
 
     
 
-    for i in range(8):
+    for i in range(1):
         print(f'---------------------Cross-Validation Fold # {i+1}---------------------')
-        train(fold_num=i, train_datasets=[datasets[idx] for idx in train_datasets[i]], validation_datasets=[datasets[idx] for idx in validation_datasets[i]], num_epochs=100)
+        train(fold_num=i, train_datasets=[datasets[idx] for idx in train_datasets[i]], validation_datasets=[datasets[idx] for idx in validation_datasets[i]], num_epochs=10)

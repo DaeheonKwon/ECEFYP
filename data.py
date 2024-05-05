@@ -7,11 +7,14 @@ import os
 import torch
 import time
 from torch.utils.data import Dataset, DataLoader, random_split, Subset
+import logging
+
 
 class CustomEEGDataset(Dataset):
     def __init__(self, EEG_dir, transform=None, target_transform=None):
         start = time.perf_counter()
         print("Loading EEG data...")
+        logging.info("Loading EEG data...")
         self.raw = torch.load(EEG_dir)
         # Zero-pad samples with 18 channels to match the desired channel size of 22
         self.raw = [torch.nn.functional.pad(t[0], (0, 0, 0, 0, 0, 22-t[0].shape[0]), 'constant', 0) for t in self.raw]
@@ -20,7 +23,9 @@ class CustomEEGDataset(Dataset):
         self.transform = transform
         self.target_transform = target_transform
         print("EEG data loaded successfully.")
+        logging.info("EEG data loaded successfully.")
         print(f"Time taken: {time.perf_counter() - start:.4f}s")
+        logging.info(f"Time taken: {time.perf_counter() - start:.4f}s")
 
     def __len__(self):
         return len(self.labels)

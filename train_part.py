@@ -8,6 +8,7 @@ from matplotlib import pyplot as plt
 from loss import npc_training_loss, npc_validation_loss
 from model import SciCNN
 from data import get_dataloaders, CustomEEGDataset, split_datasets
+import logging
 
 def train_epoch(model, dataloaders, optimizer, loss_type, device):
     model.train()
@@ -30,6 +31,7 @@ def train_epoch(model, dataloaders, optimizer, loss_type, device):
             optimizer.step()
             if itr % report_interval == 0:
                 print(f'Processed {itr}/{total_length} samples')
+                logging.info(f'Processed {itr}/{total_length} samples')
         except StopIteration:
             iterators.remove(iterator)
     return loss/total_length, time.perf_counter() - start_epoch
