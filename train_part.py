@@ -31,14 +31,14 @@ def train_epoch(model, dataloaders, optimizer, loss_type, device):
             npc_losses += npc_loss.item()
             iCNN_losses += iCNN_loss.item()
             for name, param in model.named_parameters():
-                param.requires_grad = False
-            model.npc.position.requires_grad = True
-            npc_loss.backward(retain_graph=True)
-            for name, param in model.named_parameters():
                 if name != 'npc.label':
                     param.requires_grad = True
             model.npc.position.requires_grad = False
             iCNN_loss.backward()
+            for name, param in model.named_parameters():
+                param.requires_grad = False
+            model.npc.position.requires_grad = True
+            npc_loss.backward()
             optimizer.step()
             if itr % report_interval == 0:
                 print(f'Processed {itr}/{total_length} samples')
