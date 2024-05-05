@@ -15,9 +15,12 @@ def train_epoch(model, dataloaders, optimizer, loss_type, device):
     loss = 0.
     iterators = list(map(iter, dataloaders))
     total_length = sum(len(itr) for itr in iterators)
+    report_interval = total_length // 100
+    itr = 0
     while iterators:
         iterator = np.random.choice(iterators)
         try:
+            itr += 1
             images, labels = next(iterator)
             images, labels = images.to(device), labels.to(device)
             optimizer.zero_grad()
@@ -25,6 +28,8 @@ def train_epoch(model, dataloaders, optimizer, loss_type, device):
             loss += train_loss.item()
             train_loss.backward()
             optimizer.step()
+            if itr % report_interval == 0:
+                print(f'Processed {itr}/{total_length} samples')
         except StopIteration:
             iterators.remove(iterator)
     return loss/total_length, time.perf_counter() - start_epoch
@@ -58,7 +63,7 @@ def validate(model, dataloader, loss_type, device):
         while True:
             try:
                 images, labels = next(iterator)
-                images, labels = images.to(device), labels.to(device)
+                images, labels = images.to(device), labels.to(device) 
                 output = model(images)
                 _, pred= loss_type(output, model)
                 pred_all = np.append(pred_all, pred)

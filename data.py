@@ -5,24 +5,22 @@ Date      2024.05.04
 
 import os
 import torch
+import time
 from torch.utils.data import Dataset, DataLoader, random_split, Subset
 
 class CustomEEGDataset(Dataset):
     def __init__(self, EEG_dir, transform=None, target_transform=None):
+        start = time.perf_counter()
+        print("Loading EEG data...")
         self.raw = torch.load(EEG_dir)
-        
         # Zero-pad samples with 18 channels to match the desired channel size of 22
-        for i in range(len(self.raw)):
-            eeg = self.raw[i][0]
-            if eeg.shape[0] < 22:
-                padding = torch.zeros(22 - eeg.shape[0], eeg.shape[1], eeg.shape[2])
-                eeg = torch.cat([eeg, padding], dim=0)
-            self.raw[i] = (eeg, self.raw[i][1])
-        
+        self.raw = [torch.nn.functional.pad(t[0], (0, 0, 0, 0, 0, 22-t[0].shape[0]), 'constant', 0) for t in self.raw]
         self.EEG = torch.stack([t[0] for t in self.raw])
         self.labels = torch.stack([t[1] for t in self.raw])
         self.transform = transform
         self.target_transform = target_transform
+        print("EEG data loaded successfully.")
+        print(f"Time taken: {time.perf_counter() - start:.4f}s")
 
     def __len__(self):
         return len(self.labels)
