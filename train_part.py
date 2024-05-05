@@ -37,6 +37,7 @@ def train_epoch(model, dataloaders, optimizer, loss_type, device):
             for param in model.parameters():
                 param.requires_grad = True
             model.npc.position.requires_grad = False
+            model.npc.label.requires_grad = False
             iCNN_loss.backward()
             optimizer.step()
             if itr % report_interval == 0:
@@ -56,8 +57,9 @@ def calibrate(model, dataloader, device):
         images = images.to(device)
         output = model(images)
         label_count = torch.zeros_like(model.npc.label)
-
+        print('output:', output.shape)
         for img in output:
+            print('img:', img.shape)
             distances = torch.norm(img.view(1, -1, 1) - model.npc.position.data, dim=1).squeeze()
             closest_position_index = torch.argmin(distances)
             label_count[closest_position_index] += 1
