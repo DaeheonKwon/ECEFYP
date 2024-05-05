@@ -10,6 +10,15 @@ from torch.utils.data import Dataset, DataLoader, random_split, Subset
 class CustomEEGDataset(Dataset):
     def __init__(self, EEG_dir, transform=None, target_transform=None):
         self.raw = torch.load(EEG_dir)
+        
+        # Zero-pad samples with 18 channels to match the desired channel size of 22
+        for i in range(len(self.raw)):
+            eeg = self.raw[i][0]
+            if eeg.shape[0] < 22:
+                padding = torch.zeros(22 - eeg.shape[0], eeg.shape[1], eeg.shape[2])
+                eeg = torch.cat([eeg, padding], dim=0)
+            self.raw[i] = (eeg, self.raw[i][1])
+        
         self.EEG = torch.stack([t[0] for t in self.raw])
         self.labels = torch.stack([t[1] for t in self.raw])
         self.transform = transform
@@ -27,6 +36,7 @@ class CustomEEGDataset(Dataset):
             label = self.target_transform(label)
         return image, label
     
+
 def get_dataloaders(dataset, batch_size=50):
     class_inds = [torch.where(dataset.labels == class_idx)[0]
                 for class_idx in torch.unique(dataset.labels)]

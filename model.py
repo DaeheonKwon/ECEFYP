@@ -11,7 +11,7 @@ class SciCNN(nn.Module):
 
     def __init__(self):
         super(SciCNN, self).__init__()        
-
+        
         self.inception1 = Inception(8, 8, 16, 8, 8)
         self.maxpool1 = nn.MaxPool2d((1, 4), stride=(1, 4), ceil_mode=True)
         self.inception2 = Inception(16, 16, 8, 16, 4)
