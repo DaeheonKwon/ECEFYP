@@ -45,7 +45,7 @@ def calibrate(model, dataloader, device):
         images, _ = next(iterator) # batched image of batch size 120 : 2-min readout of non-seizure data
         images = images.to(device)
         output = model(images)
-        label_count = torch.zeroes_like(model.npc.label)
+        label_count = torch.zeros_like(model.npc.label)
 
         for img in output:
             distances = torch.norm(img.view(1, -1, 1) - model.npc.position.data, dim=1).squeeze()
