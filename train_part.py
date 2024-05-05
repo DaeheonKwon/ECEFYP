@@ -13,8 +13,8 @@ import logging
 def train_epoch(model, dataloaders, optimizer, loss_type, device):
     model.train()
     start_epoch = time.perf_counter()
-    npc_loss = 0.
-    iCNN_loss = 0.
+    npc_losses = 0.
+    iCNN_losses = 0.
     iterators = list(map(iter, dataloaders))
     total_length = sum(len(itr) for itr in iterators)
     report_interval = total_length // 10
@@ -28,8 +28,8 @@ def train_epoch(model, dataloaders, optimizer, loss_type, device):
             optimizer.zero_grad()
             '''Key Part: npc loss only updates npc positions, and iCNN loss only updates iCNN parameters'''
             npc_loss, iCNN_loss = loss_type(model(images), model)
-            npc_loss += npc_loss.item()
-            iCNN_loss += iCNN_loss.item()
+            npc_losses += npc_loss.item()
+            iCNN_losses += iCNN_loss.item()
             for param in model.parameters():
                 param.requires_grad = False
             model.npc.position.requires_grad = True
@@ -44,7 +44,7 @@ def train_epoch(model, dataloaders, optimizer, loss_type, device):
                 logging.info(f'Processed {itr}/{total_length} samples')
         except StopIteration:
             iterators.remove(iterator)
-    return npc_loss/total_length, iCNN_loss/total_length, time.perf_counter() - start_epoch
+    return npc_losses/total_length, iCNN_losses/total_length, time.perf_counter() - start_epoch
 
 '''Calibration: 2 minutes of seizure-free data / labeling NPC clusters'''
 def calibrate(model, dataloader, device): 
