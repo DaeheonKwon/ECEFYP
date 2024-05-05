@@ -156,8 +156,8 @@ if __name__ == '__main__':
         # CustomEEGDataset(path + '/chb18.pt'),
         # CustomEEGDataset(path + '/chb19.pt'),
         # CustomEEGDataset(path + '/chb20.pt'),
-        # CustomEEGDataset(path + '/chb21.pt'),
-        # CustomEEGDataset(path + '/chb22.pt'),
+        CustomEEGDataset(path + '/chb21.pt'),
+        CustomEEGDataset(path + '/chb22.pt'),
         CustomEEGDataset(path + '/chb23.pt'),
         CustomEEGDataset(path + '/chb24.pt'),
     ]
@@ -175,7 +175,7 @@ if __name__ == '__main__':
     ]
 
     train_datasets = [
-        [1],
+        [1, 2, 3],
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 19, 21, 22, 23, 24],
         [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 17, 18, 19, 20, 22, 23],
