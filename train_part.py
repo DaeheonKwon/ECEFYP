@@ -30,10 +30,12 @@ def train_epoch(model, dataloaders, optimizer, loss_type, device):
             npc_loss, iCNN_loss = loss_type(model(images), model)
             npc_loss += npc_loss.item()
             iCNN_loss += iCNN_loss.item()
-            model.parameters().requires_grad = False
+            for param in model.parameters():
+                param.requires_grad = False
             model.npc.position.requires_grad = True
             npc_loss.backward(retain_graph=True)
-            model.parameters().requires_grad = True
+            for param in model.parameters():
+                param.requires_grad = True
             model.npc.position.requires_grad = False
             iCNN_loss.backward()
             optimizer.step()
