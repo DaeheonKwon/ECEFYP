@@ -41,7 +41,7 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
 
     train_dataloaders = list(chain(*train_dataloaders))
     npc_loss_list = []
-    iCNN_loss_list = []
+
 
     for validation_dataset in validation_datasets:
         _, val_dataloader = get_dataloaders(validation_dataset)
@@ -50,16 +50,16 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
     for epoch in range(num_epochs):
         print(f'Epoch #{epoch+1}')
         logging.info(f'Epoch #{epoch+1}')
-        npc_loss, iCNN_loss, train_time = train_epoch(model, train_dataloaders, optimizer, npc_training_loss, device)
+        npc_loss, train_time = train_epoch(model, train_dataloaders, optimizer, npc_training_loss, device)
         scheduler.step()
         npc_loss_list.append(npc_loss)
-        iCNN_loss_list.append(iCNN_loss)
+  
         save_model('../model', fold_num, epoch, model, optimizer)
         print(
-            f'NPCloss = {npc_loss:.4f} iCNNloss = {iCNN_loss:.4f} TrainTime = {train_time:.4f}s'
+            f'NPCloss = {npc_loss:.4f} TrainTime = {train_time:.4f}s'
         )
         logging.info(
-            f'NPCloss = {npc_loss:.4f} iCNNloss = {iCNN_loss:.4f} TrainTime = {train_time:.4f}s'
+            f'NPCloss = {npc_loss:.4f} TrainTime = {train_time:.4f}s'
         )
 
         print('Training completed. Starting validation...')
@@ -113,18 +113,16 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
         np.save(f'../results/event_specificity_list_fold_{fold_num+1}_epoch_{epoch}.npy', event_specificity_list)
 
     y1 = np.array([])
-    y2 = np.array([])
+
     
     for i in npc_loss_list:
         y1 = np.append(y1, i)
 
-    for i in iCNN_loss_list:
-        y2 = np.append(y2, i)
     
     x = np.arange(0, num_epochs)
     
-    plt.plot(x, y1, 'r-.', label = 'NPC')
-    plt.plot(x, y2, 'b-.', label = 'iCNN')
+    plt.plot(x, y1, 'r-.', label = 'train')
+
     plt.legend()
     
     plt.title('Loss by Epoch')
