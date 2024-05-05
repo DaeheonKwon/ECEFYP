@@ -29,22 +29,23 @@ def save_model(exp_dir, epoch, model, optimizer):
 
 def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
-    print("1")
     model = SciCNN().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
-    print("2")
     train_dataloaders = []
     val_dataloaders = []
 
     for train_dataset in train_datasets:
-        print("3")
         train_dataloader, _ = get_dataloaders(train_dataset)
         train_dataloaders.append(train_dataloader)
 
     train_dataloaders = list(chain(*train_dataloaders))
     train_loss_list = []
-    print("4")
+
+    for validation_dataset in validation_datasets:
+        _, val_dataloader = get_dataloaders(validation_dataset)
+        val_dataloaders.append(val_dataloader)
+
     for epoch in range(num_epochs):
         print(f'Epoch #{epoch}')
         logging.info(f'Epoch #{epoch}')
@@ -59,52 +60,48 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
             f'Trainloss = {train_loss:.4f} TrainTime = {train_time:.4f}s'
         )
 
-    print('Training completed. Starting validation...')
-    logging.info('Training completed. Starting validation...')
+        print('Training completed. Starting validation...')
+        logging.info('Training completed. Starting validation...')
 
-    for validation_dataset in validation_datasets:
-        _, val_dataloader = get_dataloaders(validation_dataset)
-        val_dataloaders.append(val_dataloader)
+        # validation dataloaders are separated by patient. individual calibration is needed
+        sensitivity_list = np.array([])
+        specificity_list = np.array([])
 
-    # validation dataloaders are separated by patient. individual calibration is needed
-    sensitivity_list = np.array([])
-    specificity_list = np.array([])
+        event_sensitivity_list = np.array([])
+        event_specificity_list = np.array([])
 
-    event_sensitivity_list = np.array([])
-    event_specificity_list = np.array([])
+        '''Validation for each patient in the validation set.'''
+        for i, val_dataloader in enumerate(val_dataloaders):
+            print('Validation for patient #', i+1, '/', len(val_dataloaders))
+            logging.info('Validation for patient #', i+1, '/', len(val_dataloaders))
+            confusion_matrix, event_confusion_matrix, calibrate_time, val_time = validate(model, val_dataloader, npc_validation_loss, device)
+            sensitivity = confusion_matrix[1, 1]/(confusion_matrix[1, 1] + confusion_matrix[0, 1])
+            specificity = confusion_matrix[0, 0]/(confusion_matrix[0, 0] + confusion_matrix[1, 0])
+            sensitivity_list = np.append(sensitivity_list, sensitivity)
+            specificity_list = np.append(specificity_list, specificity)
 
-    '''Validation for each patient in the validation set.'''
-    for i, val_dataloader in enumerate(val_dataloaders):
-        print('Validation for patient #', i+1, '/', len(val_dataloaders))
-        logging.info('Validation for patient #', i+1, '/', len(val_dataloaders))
-        confusion_matrix, event_confusion_matrix, calibrate_time, val_time = validate(model, val_dataloader, npc_validation_loss, device)
-        sensitivity = confusion_matrix[1, 1]/(confusion_matrix[1, 1] + confusion_matrix[0, 1])
-        specificity = confusion_matrix[0, 0]/(confusion_matrix[0, 0] + confusion_matrix[1, 0])
-        sensitivity_list = np.append(sensitivity_list, sensitivity)
-        specificity_list = np.append(specificity_list, specificity)
+            event_sensitivity = event_confusion_matrix[1, 1]/(event_confusion_matrix[1, 1] + event_confusion_matrix[0, 1])
+            event_specificity = event_confusion_matrix[0, 0]/(event_confusion_matrix[0, 0] + event_confusion_matrix[1, 0])
+            event_specificity_list = np.append(event_specificity_list, event_specificity)
+            event_sensitivity_list = np.append(event_sensitivity_list, event_sensitivity)
 
-        event_sensitivity = event_confusion_matrix[1, 1]/(event_confusion_matrix[1, 1] + event_confusion_matrix[0, 1])
-        event_specificity = event_confusion_matrix[0, 0]/(event_confusion_matrix[0, 0] + event_confusion_matrix[1, 0])
-        event_specificity_list = np.append(event_specificity_list, event_specificity)
-        event_sensitivity_list = np.append(event_sensitivity_list, event_sensitivity)
-
-        print(
-                f'Calibration Time= {calibrate_time:.4f}s ValTime = {val_time:.4f}s\n'
-                f'Sample-based Sensitivity = {sensitivity:.4f} Sample-based Specificity = {specificity:.4f}\n'
-                f'Event-based Sensitivity = {event_sensitivity:.4f} Event-based Specificity = {event_specificity:.4f}'
-            )
-        logging.info(
-                f'Calibration Time= {calibrate_time:.4f}s ValTime = {val_time:.4f}s\n'
-                f'Sample-based Sensitivity = {sensitivity:.4f} Sample-based Specificity = {specificity:.4f}\n'
-                f'Event-based Sensitivity = {event_sensitivity:.4f} Event-based Specificity = {event_specificity:.4f}'
-            )
-
-        print(f'Validation #{i+1}/{len(val_dataloaders)}completed. Saving results...')
+            print(
+                    f'Calibration Time= {calibrate_time:.4f}s ValTime = {val_time:.4f}s\n'
+                    f'Sample-based Sensitivity = {sensitivity:.4f} Sample-based Specificity = {specificity:.4f}\n'
+                    f'Event-based Sensitivity = {event_sensitivity:.4f} Event-based Specificity = {event_specificity:.4f}'
+                )
+            logging.info(
+                    f'Calibration Time= {calibrate_time:.4f}s ValTime = {val_time:.4f}s\n'
+                    f'Sample-based Sensitivity = {sensitivity:.4f} Sample-based Specificity = {specificity:.4f}\n'
+                    f'Event-based Sensitivity = {event_sensitivity:.4f} Event-based Specificity = {event_specificity:.4f}'
+                )
+            
+        print(f'Validation #{fold_num+1}/{len(val_dataloaders)}completed. Saving results...')
         logging.info(f'Validation #{i+1}/{len(val_dataloaders)}completed. Saving results...')
-        np.save(f'../results/sensitivity_list_fold_{i+1}.npy', sensitivity_list)
-        np.save(f'../results/specificity_list_fold_{i+1}.npy', specificity_list)
-        np.save(f'../results/event_sensitivity_list_fold_{i+1}.npy', event_sensitivity_list)
-        np.save(f'../results/event_specificity_list_fold_{i+1}.npy', event_specificity_list)
+        np.save(f'../results/sensitivity_list_fold_{fold_num+1}_epoch_{epoch}.npy', sensitivity_list)
+        np.save(f'../results/specificity_list_fold_{fold_num+1}_epoch_{epoch}.npy', specificity_list)
+        np.save(f'../results/event_sensitivity_list_fold_{fold_num+1}_epoch_{epoch}.npy', event_sensitivity_list)
+        np.save(f'../results/event_specificity_list_fold_{fold_num+1}_epoch_{epoch}.npy', event_specificity_list)
 
     y1 = np.array([])
     
@@ -129,27 +126,27 @@ if __name__ == '__main__':
 
     path = '/home/dhyun/project/FYP'
     datasets = [
-        # CustomEEGDataset(path + '/chb01.pt'),
-        # CustomEEGDataset(path + '/chb02.pt'),
-        # CustomEEGDataset(path + '/chb03.pt'),
-        # CustomEEGDataset(path + '/chb04-1.pt'),
-        # CustomEEGDataset(path + '/chb04-2.pt'),
-        # CustomEEGDataset(path + '/chb05.pt'),
-        # CustomEEGDataset(path + '/chb06.pt'),
-        # CustomEEGDataset(path + '/chb07.pt'),
-        # CustomEEGDataset(path + '/chb08.pt'),
-        # CustomEEGDataset(path + '/chb09.pt'),
-        # CustomEEGDataset(path + '/chb10.pt'),
-        # CustomEEGDataset(path + '/chb11.pt'),
-        # CustomEEGDataset(path + '/chb12.pt'),
-        # CustomEEGDataset(path + '/chb13.pt'),
-        # CustomEEGDataset(path + '/chb14.pt'),
-        # CustomEEGDataset(path + '/chb15.pt'),
-        # CustomEEGDataset(path + '/chb16.pt'),
-        # CustomEEGDataset(path + '/chb17.pt'),
-        # CustomEEGDataset(path + '/chb18.pt'),
-        # CustomEEGDataset(path + '/chb19.pt'),
-        # CustomEEGDataset(path + '/chb20.pt'),
+        CustomEEGDataset(path + '/chb01.pt'),
+        CustomEEGDataset(path + '/chb02.pt'),
+        CustomEEGDataset(path + '/chb03.pt'),
+        CustomEEGDataset(path + '/chb04-1.pt'),
+        CustomEEGDataset(path + '/chb04-2.pt'),
+        CustomEEGDataset(path + '/chb05.pt'),
+        CustomEEGDataset(path + '/chb06.pt'),
+        CustomEEGDataset(path + '/chb07.pt'),
+        CustomEEGDataset(path + '/chb08.pt'),
+        CustomEEGDataset(path + '/chb09.pt'),
+        CustomEEGDataset(path + '/chb10.pt'),
+        CustomEEGDataset(path + '/chb11.pt'),
+        CustomEEGDataset(path + '/chb12.pt'),
+        CustomEEGDataset(path + '/chb13.pt'),
+        CustomEEGDataset(path + '/chb14.pt'),
+        CustomEEGDataset(path + '/chb15.pt'),
+        CustomEEGDataset(path + '/chb16.pt'),
+        CustomEEGDataset(path + '/chb17.pt'),
+        CustomEEGDataset(path + '/chb18.pt'),
+        CustomEEGDataset(path + '/chb19.pt'),
+        CustomEEGDataset(path + '/chb20.pt'),
         CustomEEGDataset(path + '/chb21.pt'),
         CustomEEGDataset(path + '/chb22.pt'),
         CustomEEGDataset(path + '/chb23.pt'),
@@ -157,7 +154,7 @@ if __name__ == '__main__':
     ]
 
     validation_datasets = [
-        [0, 1],
+        # [0, 1],
         [12, 18, 20],
         [0, 11, 13],
         [16, 21, 24],
@@ -169,7 +166,7 @@ if __name__ == '__main__':
     ]
 
     train_datasets = [
-        [2, 3],
+        # [2, 3],
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 19, 21, 22, 23, 24],
         [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 17, 18, 19, 20, 22, 23],
@@ -178,10 +175,8 @@ if __name__ == '__main__':
         [0, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 24],
         [0, 1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23, 24],
         [0, 1, 2, 3, 4, 5, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24]
-    ]
+    ]    
 
-    
-
-    for i in range(1):
+    for i in range(8):
         print(f'---------------------Cross-Validation Fold # {i+1}---------------------')
-        train(fold_num=i, train_datasets=[datasets[idx] for idx in train_datasets[i]], validation_datasets=[datasets[idx] for idx in validation_datasets[i]], num_epochs=10)
+        train(fold_num=i, train_datasets=[datasets[idx] for idx in train_datasets[i]], validation_datasets=[datasets[idx] for idx in validation_datasets[i]], num_epochs=100)
