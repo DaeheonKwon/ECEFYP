@@ -42,14 +42,19 @@ def calibrate(model, dataloader, device):
     start = time.perf_counter()
     iterator = iter(dataloader)
     with torch.no_grad():  # using context manager
-        for _ in range(120): # 1 samples per batch, 120 batches: 2-minute calibration
-            images, _ = next(iterator)
-            images = images.to(device)
-            output = model(images)
-            mean_output = torch.mean(output, dim=0) # unnecessary, since batch size is 1. left for consistency
-            distances = torch.norm(mean_output.view(1, -1, 1) - model.npc.position.data, dim=1).squeeze()
+        images, _ = next(iterator) # batched image of batch size 120 : 2-min readout of non-seizure data
+        images = images.to(device)
+        output = model(images)
+        label_count = torch.zeroes_like(model.npc.label)
+
+        for img in output:
+            distances = torch.norm(img.view(1, -1, 1) - model.npc.position.data, dim=1).squeeze()
             closest_position_index = torch.argmin(distances)
-            model.npc.label[closest_position_index] = 0
+            label_count[closest_position_index] += 1
+
+        model.npc.label = torch.where(label_count > 1, 0, 1) 
+        # configurable. 0 (non-seizure) if at least 2 samples are closest to that particular NPC. Otherwise, 1 (seizure)
+
     return time.perf_counter() - start
 
 def validate(model, dataloader, loss_type, device):
