@@ -96,8 +96,18 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
                     f'Event-based Sensitivity = {event_sensitivity:.4f} Event-based Specificity = {event_specificity:.4f}'
                 )
             
+        print(f'Validation for epoch #{epoch+1} completed. Saving results...')
+        logging.info(f'Validation for epoch #{epoch+1} completed. Saving results...')
+
+        print(f'sample-based sensitivity: {sensitivity_list.mean()}, sample-based specificity: {specificity_list.mean()}')
+        logging.info(f'sample-based sensitivity: {sensitivity_list.mean()}, sample-based specificity: {specificity_list.mean()}')
+
+        print(f'event-based sensitivity: {event_sensitivity_list.mean()}, event-based specificity: {event_specificity_list.mean()}')
+        logging.info(f'event-based sensitivity: {event_sensitivity_list.mean()}, event-based specificity: {event_specificity_list.mean()}')
+
         print(f'Validation #{fold_num+1}/{len(val_dataloaders)}completed. Saving results...')
-        logging.info(f'Validation #{i+1}/{len(val_dataloaders)}completed. Saving results...')
+        logging.info(f'Validation #{fold_num+1}/{len(val_dataloaders)}completed. Saving results...')
+
         np.save(f'../results/sensitivity_list_fold_{fold_num+1}_epoch_{epoch}.npy', sensitivity_list)
         np.save(f'../results/specificity_list_fold_{fold_num+1}_epoch_{epoch}.npy', specificity_list)
         np.save(f'../results/event_sensitivity_list_fold_{fold_num+1}_epoch_{epoch}.npy', event_sensitivity_list)
@@ -126,35 +136,35 @@ if __name__ == '__main__':
 
     path = '/home/dhyun/project/FYP'
     datasets = [
-        # CustomEEGDataset(path + '/chb01.pt'),
-        # CustomEEGDataset(path + '/chb02.pt'),
-        # CustomEEGDataset(path + '/chb03.pt'),
-        # CustomEEGDataset(path + '/chb04-1.pt'),
-        # CustomEEGDataset(path + '/chb04-2.pt'),
-        # CustomEEGDataset(path + '/chb05.pt'),
-        # CustomEEGDataset(path + '/chb06.pt'),
-        # CustomEEGDataset(path + '/chb07.pt'),
-        # CustomEEGDataset(path + '/chb08.pt'),
-        # CustomEEGDataset(path + '/chb09.pt'),
-        # CustomEEGDataset(path + '/chb10.pt'),
-        # CustomEEGDataset(path + '/chb11.pt'),
-        # CustomEEGDataset(path + '/chb12.pt'),
-        # CustomEEGDataset(path + '/chb13.pt'),
-        # CustomEEGDataset(path + '/chb14.pt'),
-        # CustomEEGDataset(path + '/chb15.pt'),
-        # CustomEEGDataset(path + '/chb16.pt'),
-        # CustomEEGDataset(path + '/chb17.pt'),
-        # CustomEEGDataset(path + '/chb18.pt'),
-        # CustomEEGDataset(path + '/chb19.pt'),
-        # CustomEEGDataset(path + '/chb20.pt'),
-        # CustomEEGDataset(path + '/chb21.pt'),
-        # CustomEEGDataset(path + '/chb22.pt'),
+        CustomEEGDataset(path + '/chb01.pt'),
+        CustomEEGDataset(path + '/chb02.pt'),
+        CustomEEGDataset(path + '/chb03.pt'),
+        CustomEEGDataset(path + '/chb04-1.pt'),
+        CustomEEGDataset(path + '/chb04-2.pt'),
+        CustomEEGDataset(path + '/chb05.pt'),
+        CustomEEGDataset(path + '/chb06.pt'),
+        CustomEEGDataset(path + '/chb07.pt'),
+        CustomEEGDataset(path + '/chb08.pt'),
+        CustomEEGDataset(path + '/chb09.pt'),
+        CustomEEGDataset(path + '/chb10.pt'),
+        CustomEEGDataset(path + '/chb11.pt'),
+        CustomEEGDataset(path + '/chb12.pt'),
+        CustomEEGDataset(path + '/chb13.pt'),
+        CustomEEGDataset(path + '/chb14.pt'),
+        CustomEEGDataset(path + '/chb15.pt'),
+        CustomEEGDataset(path + '/chb16.pt'),
+        CustomEEGDataset(path + '/chb17.pt'),
+        CustomEEGDataset(path + '/chb18.pt'),
+        CustomEEGDataset(path + '/chb19.pt'),
+        CustomEEGDataset(path + '/chb20.pt'),
+        CustomEEGDataset(path + '/chb21.pt'),
+        CustomEEGDataset(path + '/chb22.pt'),
         CustomEEGDataset(path + '/chb23.pt'),
         CustomEEGDataset(path + '/chb24.pt'),
     ]
 
     validation_datasets = [
-        [0],
+        # [0],
         [12, 18, 20],
         [0, 11, 13],
         [16, 21, 24],
@@ -166,7 +176,7 @@ if __name__ == '__main__':
     ]
 
     train_datasets = [
-        [1],
+        # [1],
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 19, 21, 22, 23, 24],
         [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 17, 18, 19, 20, 22, 23],
