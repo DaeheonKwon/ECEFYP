@@ -12,8 +12,7 @@ def npc_training_loss(output, model):
     closest_position_index = torch.argmin(distances)
     closest_position = model.npc.position[closest_position_index]
     npc_loss = torch.norm(mean_output - closest_position)
-    iCNN_loss = torch.norm(distances)
-    return npc_loss, iCNN_loss
+    return npc_loss
 
 def npc_validation_loss(output, model):
     # output: (batch_size, 16, 1)

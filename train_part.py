@@ -26,22 +26,10 @@ def train_epoch(model, dataloaders, optimizer, loss_type, device):
             images, labels = next(iterator)
             images, labels = images.to(device), labels.to(device)
             optimizer.zero_grad()
-            '''Key Part: npc loss only updates npc positions, and iCNN loss only updates iCNN parameters'''
-            npc_loss, iCNN_loss = loss_type(model(images), model)
+            
+            npc_loss = loss_type(model(images), model)
             npc_losses += npc_loss.item()
-            iCNN_losses += iCNN_loss.item()
-
-            for name, param in model.named_parameters():
-                if name != 'npc.label':
-                    param.requires_grad = False
-            model.npc.position.requires_grad = True
             npc_loss.backward(retain_graph=True)
-
-            for name, param in model.named_parameters():
-                if name != 'npc.label':
-                    param.requires_grad = True
-            model.npc.position.requires_grad = False
-            iCNN_loss.backward(retain_graph=True)
             
             optimizer.step()
             if itr % report_interval == 0:
@@ -49,7 +37,7 @@ def train_epoch(model, dataloaders, optimizer, loss_type, device):
                 logging.info(f'Processed {itr}/{total_length} samples')
         except StopIteration:
             iterators.remove(iterator)
-    return npc_losses/total_length, iCNN_losses/total_length, time.perf_counter() - start_epoch
+    return npc_losses/total_length, time.perf_counter() - start_epoch
 
 '''Calibration: 2 minutes of seizure-free data / labeling NPC clusters'''
 def calibrate(model, dataloader, device): 
