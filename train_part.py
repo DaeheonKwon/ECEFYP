@@ -16,7 +16,7 @@ def train_epoch(model, dataloaders, optimizer, loss_type, device):
     loss = 0.
     iterators = list(map(iter, dataloaders))
     total_length = sum(len(itr) for itr in iterators)
-    report_interval = total_length // 100
+    report_interval = total_length // 10
     itr = 0
     while iterators:
         iterator = np.random.choice(iterators)
