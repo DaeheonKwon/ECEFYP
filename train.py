@@ -29,19 +29,22 @@ def save_model(exp_dir, epoch, model, optimizer):
 
 def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+    print("1")
     model = SciCNN().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
-
+    print("2")
     train_dataloaders = []
     val_dataloaders = []
 
     for train_dataset in train_datasets:
+        print("3")
         train_dataloader, _ = get_dataloaders(train_dataset)
         train_dataloaders.append(train_dataloader)
 
     train_dataloaders = list(chain(*train_dataloaders))
     train_loss_list = []
+    print("4")
     for epoch in range(num_epochs):
         print(f'Epoch #{epoch}')
         logging.info(f'Epoch #{epoch}')
