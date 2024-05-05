@@ -47,8 +47,8 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
         val_dataloaders.append(val_dataloader)
 
     for epoch in range(num_epochs):
-        print(f'Epoch #{epoch}')
-        logging.info(f'Epoch #{epoch}')
+        print(f'Epoch #{epoch+1}')
+        logging.info(f'Epoch #{epoch+1}')
         train_loss, train_time = train_epoch(model, train_dataloaders, optimizer, npc_training_loss, device)
         scheduler.step()
         train_loss_list.append(train_loss)
@@ -73,7 +73,7 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
         '''Validation for each patient in the validation set.'''
         for i, val_dataloader in enumerate(val_dataloaders):
             print('Validation for patient #', i+1, '/', len(val_dataloaders))
-            logging.info('Validation for patient #', i+1, '/', len(val_dataloaders))
+            logging.info(f'Validation for patient # {i+1}/{len(val_dataloaders)}')
             confusion_matrix, event_confusion_matrix, calibrate_time, val_time = validate(model, val_dataloader, npc_validation_loss, device)
             sensitivity = confusion_matrix[1, 1]/(confusion_matrix[1, 1] + confusion_matrix[0, 1])
             specificity = confusion_matrix[0, 0]/(confusion_matrix[0, 0] + confusion_matrix[1, 0])
@@ -105,8 +105,8 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
         print(f'event-based sensitivity: {event_sensitivity_list.mean()}, event-based specificity: {event_specificity_list.mean()}')
         logging.info(f'event-based sensitivity: {event_sensitivity_list.mean()}, event-based specificity: {event_specificity_list.mean()}')
 
-        print(f'Validation #{fold_num+1}/{len(val_dataloaders)}completed. Saving results...')
-        logging.info(f'Validation #{fold_num+1}/{len(val_dataloaders)}completed. Saving results...')
+        print(f'Validation #{fold_num+1}/{len(val_dataloaders)} completed. Saving results...')
+        logging.info(f'Validation #{fold_num+1}/{len(val_dataloaders)} completed. Saving results...')
 
         np.save(f'../results/sensitivity_list_fold_{fold_num+1}_epoch_{epoch}.npy', sensitivity_list)
         np.save(f'../results/specificity_list_fold_{fold_num+1}_epoch_{epoch}.npy', specificity_list)

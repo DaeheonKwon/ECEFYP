@@ -11,7 +11,7 @@ class SciCNN(nn.Module):
 
     def __init__(self):
         super(SciCNN, self).__init__()        
-        
+
         self.inception1 = Inception(8, 8, 16, 8, 8)
         self.maxpool1 = nn.MaxPool2d((1, 4), stride=(1, 4), ceil_mode=True)
         self.inception2 = Inception(16, 16, 8, 16, 4)
@@ -83,7 +83,7 @@ class BasicConv1d(nn.Module):
         return self.conv(x)
     
 class NPC(nn.Module):
-    def __init__(self, num_clusters=64):
+    def __init__(self, num_clusters=256):
         super(NPC, self).__init__()
         # 256 predefined positions of NPC clusters
         self.position = nn.Parameter(torch.from_numpy(np.random.uniform(0, 1, (num_clusters, 16, 1))).to(torch.float32), requires_grad=True)
