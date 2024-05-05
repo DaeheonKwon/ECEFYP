@@ -83,19 +83,19 @@ def validate(model, dataloader, loss_type, device):
         clusters = np.split(labels_all, np.where(np.diff(labels_all) != 0)[0]+1)
         pred_clusters = np.split(pred_all, np.where(np.diff(labels_all) != 0)[0]+1)
 
-        cluster_labels = []
-        cluster_preds = []
+        cluster_labels = np.array([])
+        cluster_preds = np.array([])
 
         for i, cluster in enumerate(clusters):
             if np.count_nonzero(cluster) > 0:
-                cluster_labels.append(1)
+                cluster_labels = np.append(cluster_labels, 1)
                 if np.count_nonzero(pred_clusters[i]) > 0:
-                    cluster_preds.append(1)
+                    cluster_preds = np.append(cluster_preds, 1)
                 else:
-                    cluster_preds.append(0)
+                    cluster_preds = np.append(cluster_preds, 0)
             else:
-                cluster_labels.append(cluster)
-                cluster_preds.append(pred_clusters[i])
+                cluster_labels = np.append(cluster_labels, cluster)
+                cluster_preds = np.append(cluster_preds, pred_clusters[i])
 
         event_confusion_matrix[0, 0] = np.sum(np.logical_and(cluster_preds == 0, cluster_labels == 0))
         event_confusion_matrix[0, 1] = np.sum(np.logical_and(cluster_preds == 0, cluster_labels == 1))
