@@ -14,7 +14,9 @@ def npc_training_loss(output, model, l2_reg):
     npc_loss = torch.norm(mean_output - closest_position)
 
     # Add L2 regularization term
-    l2_loss = l2_reg * 0.5 * torch.norm(model.npc.position)**2
+
+    all_param = torch.cat([param.view(-1) for name, param in model.named_parameters() if 'npc.label' not in name])
+    l2_loss = l2_reg * 0.5 * torch.norm(all_param) ** 2
 
     return npc_loss + l2_loss
 
