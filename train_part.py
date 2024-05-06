@@ -53,7 +53,7 @@ def calibrate(model, dataloader, device):
             closest_position_index = torch.argmin(distances)
             label_count[closest_position_index] += 1
 
-        model.npc.label = nn.Parameter(torch.where(label_count > 0, 0, 1), requires_grad=False)
+        model.npc.label = nn.Parameter(torch.where(label_count > 1, 0, 1), requires_grad=False)
         print('label count:', label_count)
         logging.info(f'label count: {label_count}')
         print('npc label:', model.npc.label)
