@@ -191,4 +191,4 @@ if __name__ == '__main__':
 
     for i in range(8):
         print(f'---------------------Cross-Validation Fold # {i+1}---------------------')
-        train(fold_num=i, train_datasets=[datasets[idx] for idx in train_datasets[i]], validation_datasets=[datasets[idx] for idx in validation_datasets[i]], num_epochs=100)
+        train(fold_num=i, train_datasets=[datasets[idx] for idx in train_datasets[i]], validation_datasets=[datasets[idx] for idx in validation_datasets[i]], num_epochs=40)
