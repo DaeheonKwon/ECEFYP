@@ -26,8 +26,7 @@ def train_epoch(model, dataloaders, optimizer, loss_type, device):
             images, labels = next(iterator)
             images, labels = images.to(device), labels.to(device)
             optimizer.zero_grad()
-            
-            npc_loss = loss_type(model(images), model)
+            npc_loss = loss_type(model(images), model, 1e-6)
             npc_losses += npc_loss.item()
             npc_loss.backward(retain_graph=True)
             

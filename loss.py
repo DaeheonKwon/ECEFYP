@@ -5,14 +5,18 @@ Date      2024.05.04
 
 import torch
 
-def npc_training_loss(output, model):
+def npc_training_loss(output, model, l2_reg):
     # output: (batch_size, 16, 1)
     mean_output = torch.mean(output, dim=0)
     distances = torch.norm(mean_output.view(1, -1, 1) - model.npc.position.data, dim=1).squeeze()
     closest_position_index = torch.argmin(distances)
     closest_position = model.npc.position[closest_position_index]
     npc_loss = torch.norm(mean_output - closest_position)
-    return npc_loss
+
+    # Add L2 regularization term
+    l2_loss = l2_reg * 0.5 * torch.norm(model.npc.position)**2
+
+    return npc_loss + l2_loss
 
 def npc_validation_loss(output, model):
     # output: (batch_size, 16, 1)
