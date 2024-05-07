@@ -30,7 +30,7 @@ def save_model(exp_dir, fold, epoch, model, optimizer):
 def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
     model = SciCNN().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
+    optimizer = torch.optim.SGD(model.parameters(), lr=1e-6, momentum=0.9)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
     train_dataloaders = []
     val_dataloaders = []
@@ -50,20 +50,23 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
     for epoch in range(num_epochs):
         print(f'Epoch #{epoch+1}')
         logging.info(f'Epoch #{epoch+1}')
-        # npc_loss, train_time = train_epoch(model, train_dataloaders, optimizer, npc_training_loss, device)
-        # scheduler.step()
-        # npc_loss_list.append(npc_loss)
-  
-        # save_model('../model', fold_num, epoch, model, optimizer)
-        # print(
-        #     f'NPCloss = {npc_loss:.4f} TrainTime = {train_time:.4f}s'
-        # )
-        # logging.info(
-        #     f'NPCloss = {npc_loss:.4f} TrainTime = {train_time:.4f}s'
-        # )
 
-        model.load_state_dict(torch.load(f'../model/model_{epoch}_{fold_num}.pt')['model'])
-        optimizer.load_state_dict(torch.load(f'../model/model_{epoch}_{fold_num}.pt')['optimizer'])
+        npc_loss, train_time = train_epoch(model, train_dataloaders, optimizer, npc_training_loss, device)
+        scheduler.step()
+        npc_loss_list.append(npc_loss)
+  
+        save_model('../model_fine', fold_num, epoch, model, optimizer)
+        print(
+            f'NPCloss = {npc_loss:.4f} TrainTime = {train_time:.4f}s'
+        )
+        logging.info(
+            f'NPCloss = {npc_loss:.4f} TrainTime = {train_time:.4f}s'
+        )
+
+        '''Activate if you want to validate the model without re-training'''
+        # model.load_state_dict(torch.load(f'../model/model_{epoch}_{fold_num}.pt')['model'])
+        # optimizer.load_state_dict(torch.load(f'../model/model_{epoch}_{fold_num}.pt')['optimizer'])
+
         print('Training completed. Starting validation...')
         logging.info('Training completed. Starting validation...')
 
@@ -78,7 +81,7 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
         for i, val_dataloader in enumerate(val_dataloaders):
             print('Validation for patient #', i+1, '/', len(val_dataloaders))
             logging.info(f'Validation for patient # {i+1}/{len(val_dataloaders)}')
-            confusion_matrix, event_confusion_matrix, calibrate_time, val_time = validate(model, val_dataloader, npc_validation_loss, device)
+            confusion_matrix, event_confusion_matrix, calibrate_time, val_time = validate(model, val_dataloader, npc_validation_loss, device, threshold=0)
             sensitivity = confusion_matrix[1, 1]/(confusion_matrix[1, 1] + confusion_matrix[0, 1])
             specificity = confusion_matrix[0, 0]/(confusion_matrix[0, 0] + confusion_matrix[1, 0])
             sensitivity_list = np.append(sensitivity_list, sensitivity)
@@ -103,17 +106,12 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
         print(f'Validation for epoch #{epoch+1} completed. Saving results...')
         logging.info(f'Validation for epoch #{epoch+1} completed. Saving results...')
 
-        print(f'sample-based sensitivity: {sensitivity_list.mean()}, sample-based specificity: {specificity_list.mean()}')
-        logging.info(f'sample-based sensitivity: {sensitivity_list.mean()}, sample-based specificity: {specificity_list.mean()}')
+        print(f'total sample-based sensitivity: {sensitivity_list.mean()}, sample-based specificity: {specificity_list.mean()}')
+        logging.info(f'total sample-based sensitivity: {sensitivity_list.mean()}, sample-based specificity: {specificity_list.mean()}')
 
-        print(f'event-based sensitivity: {event_sensitivity_list.mean()}, event-based specificity: {event_specificity_list.mean()}')
-        logging.info(f'event-based sensitivity: {event_sensitivity_list.mean()}, event-based specificity: {event_specificity_list.mean()}')
-
-        np.save(f'../results/sensitivity_list_fold_{fold_num+1}_epoch_{epoch}.npy', sensitivity_list)
-        np.save(f'../results/specificity_list_fold_{fold_num+1}_epoch_{epoch}.npy', specificity_list)
-        np.save(f'../results/event_sensitivity_list_fold_{fold_num+1}_epoch_{epoch}.npy', event_sensitivity_list)
-        np.save(f'../results/event_specificity_list_fold_{fold_num+1}_epoch_{epoch}.npy', event_specificity_list)
-
+        print(f'total event-based sensitivity: {event_sensitivity_list.mean()}, event-based specificity: {event_specificity_list.mean()}')
+        logging.info(f'total event-based sensitivity: {event_sensitivity_list.mean()}, event-based specificity: {event_specificity_list.mean()}')
+            
     # y1 = np.array([])
 
     
@@ -193,4 +191,4 @@ if __name__ == '__main__':
     for i in range(8):
         print(f'---------------------Cross-Validation Fold # {i+1}---------------------')
         logging.info(f'---------------------Cross-Validation Fold # {i+1}---------------------')
-        train(fold_num=i, train_datasets=[datasets[idx] for idx in train_datasets[i]], validation_datasets=[datasets[idx] for idx in validation_datasets[i]], num_epochs=5)
+        train(fold_num=i, train_datasets=[datasets[idx] for idx in train_datasets[i]], validation_datasets=[datasets[idx] for idx in validation_datasets[i]], num_epochs=10)

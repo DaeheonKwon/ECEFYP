@@ -39,7 +39,7 @@ def train_epoch(model, dataloaders, optimizer, loss_type, device):
     return npc_losses/total_length, time.perf_counter() - start_epoch
 
 '''Calibration: 2 minutes of seizure-free data / labeling NPC clusters'''
-def calibrate(model, dataloader, device): 
+def calibrate(model, dataloader, device, threshold): 
     model.eval()
     start = time.perf_counter()
     iterator = iter(dataloader)
@@ -53,7 +53,7 @@ def calibrate(model, dataloader, device):
             closest_position_index = torch.argmin(distances)
             label_count[closest_position_index] += 1
 
-        model.npc.label = nn.Parameter(torch.where(label_count > 1, 0, 1), requires_grad=False)
+        model.npc.label = nn.Parameter(torch.where(label_count > threshold, 0, 1), requires_grad=False)
         print('label count:', label_count)
         logging.info(f'label count: {label_count}')
         print('npc label:', model.npc.label)
@@ -62,14 +62,14 @@ def calibrate(model, dataloader, device):
 
     return time.perf_counter() - start
 
-def validate(model, dataloader, loss_type, device):
+def validate(model, dataloader, loss_type, device, threshold=0):
     model.eval()
     start = time.perf_counter() 
     confusion_matrix = np.zeros((2, 2))
     event_confusion_matrix = np.zeros((2, 2))
     pred_all = np.array([])
     labels_all = np.array([])
-    calibrate_time = calibrate(model, dataloader, device)  
+    calibrate_time = calibrate(model, dataloader, device, threshold=threshold)  
     with torch.no_grad():  # using context manager
         iterator = iter(dataloader)
         while True:
