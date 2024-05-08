@@ -30,7 +30,7 @@ def save_model(exp_dir, fold, epoch, model, optimizer):
 def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
     model = SciCNN().to(device)
-    optimizer = torch.optim.SGD(model.parameters(), lr=1e-6, momentum=0.9)
+    optimizer = torch.optim.SGD(model.parameters(), lr=2*1e-6, momentum=0.9)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
     train_dataloaders = []
     val_dataloaders = []
@@ -47,7 +47,11 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
         _, val_dataloader = get_dataloaders(validation_dataset)
         val_dataloaders.append(val_dataloader)
 
-    for epoch in range(num_epochs):
+    # start from epoch 9: to 20th epoch
+    model.load_state_dict(torch.load(f'../model_fine/model_9_{fold_num}.pt')['model'])
+    optimizer.load_state_dict(torch.load(f'../model_fine/model_9_{fold_num}.pt')['optimizer'])
+
+    for epoch in range(10, num_epochs):
         print(f'Epoch #{epoch+1}')
         logging.info(f'Epoch #{epoch+1}')
 
@@ -64,8 +68,8 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
         )
 
         '''Activate if you want to validate the model without re-training'''
-        # model.load_state_dict(torch.load(f'../model/model_{epoch}_{fold_num}.pt')['model'])
-        # optimizer.load_state_dict(torch.load(f'../model/model_{epoch}_{fold_num}.pt')['optimizer'])
+        # model.load_state_dict(torch.load(f'../model_fine/model_{epoch}_{fold_num}.pt')['model'])
+        # optimizer.load_state_dict(torch.load(f'../model_fine/model_{epoch}_{fold_num}.pt')['optimizer'])
 
         print('Training completed. Starting validation...')
         logging.info('Training completed. Starting validation...')
@@ -191,4 +195,4 @@ if __name__ == '__main__':
     for i in range(8):
         print(f'---------------------Cross-Validation Fold # {i+1}---------------------')
         logging.info(f'---------------------Cross-Validation Fold # {i+1}---------------------')
-        train(fold_num=i, train_datasets=[datasets[idx] for idx in train_datasets[i]], validation_datasets=[datasets[idx] for idx in validation_datasets[i]], num_epochs=10)
+        train(fold_num=i, train_datasets=[datasets[idx] for idx in train_datasets[i]], validation_datasets=[datasets[idx] for idx in validation_datasets[i]], num_epochs=20)
