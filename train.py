@@ -47,7 +47,7 @@ def train(fold_num, train_datasets, validation_datasets, num_epochs=100):
         _, val_dataloader = get_dataloaders(validation_dataset)
         val_dataloaders.append(val_dataloader)
 
-    # start from epoch 9: to 20th epoch
+    # start from epoch 9(10): to 20th epoch
     model.load_state_dict(torch.load(f'../model_fine/model_9_{fold_num}.pt')['model'])
     optimizer.load_state_dict(torch.load(f'../model_fine/model_9_{fold_num}.pt')['optimizer'])
 
