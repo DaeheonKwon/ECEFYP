@@ -1,5 +1,6 @@
 """
 Author    Daeheon Kwon (2024)
+Contact   daeheonkwon00@gmail.com
 Date      2024.05.04
 """
 
@@ -88,4 +89,3 @@ class NPC(nn.Module):
         # 256 predefined positions of NPC clusters
         self.position = nn.Parameter(torch.from_numpy(np.random.normal(0, 1e-3, (num_clusters, 16, 1))).to(torch.float32), requires_grad=True)
         self.label = nn.Parameter(torch.ones(num_clusters), requires_grad=False)
-
